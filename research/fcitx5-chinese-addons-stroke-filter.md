@@ -241,3 +241,23 @@ MoQi 项目当前需要借鉴的是 **Stroke Filter**，而不是这种“纯形
 3. 明确 partial selection 后候选列表的生成范围；
 4. 用这些结果定义“当前字/当前词”的 MoQi 约束语义；
 5. 再决定 MoQi V1 是否完全不需要修改 LibIME。
+
+
+## 10. 2026-09-24 补充核验：partial selection 相关源码
+
+继续核验同一固定 commit 后确认：
+
+- 普通 `PinyinCandidateWord::select()` 调用 `context.selectCandidatesToCursor(idx_)`，随后仅刷新 UI；
+- `ChooseCharFromPhrase` / `ChooseLastCharFromPhrase` 会从当前候选文本取指定字符，并调用 `context.selectCustom(segmentLength, chr)`；
+- `BackSpaceToUnselect` 在已有 `selectedLength()` 时调用 `context.cancel()`；
+- 左移到已选择边界时同样存在取消 selection 的路径。
+
+这些证据进一步支持：现有 Pinyin 层已经把“部分选择”作为正常 composition 状态处理，而不是每次候选选择都直接 commit。
+
+但仍不把 D004/D005 升级为最终结论，因为下一轮必须继续确认：
+
+1. `candidatesToCursor()` 与 cursor/selectedLength 的准确边界；
+2. 部分选择后下一段候选如何生成；
+3. Shuangpin 是否完全复用该路径；
+4. Android tab actions 的具体渲染与触发实现；
+5. MoQi 如何绑定“当前待选位置”，避免直接继承 Stroke Filter 的“候选任意字符匹配”语义。
