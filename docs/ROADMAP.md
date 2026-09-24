@@ -16,7 +16,7 @@
 
 ## Phase 1 — 上游源码研究
 
-**状态：进行中**
+**状态：完成**
 
 ### 1.1 Fcitx5 Chinese Addons
 
