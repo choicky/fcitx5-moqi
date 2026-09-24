@@ -24,13 +24,15 @@
 
 ## D004 — 优先复用 Fcitx5 已有辅助筛选机制
 
-**状态：Provisional**
+**状态：Accepted for V1**
 
 优先研究 `fcitx5-chinese-addons` Pinyin 已有 Stroke Filter，并尝试以新增 MoQi Filter 的方式实现，而不是重新设计辅助码系统。
 
 目标是保留 Stroke Filter，并新增墨奇筛选能力。
 
-在完整阅读 Stroke Filter 实现后重新确认本决策。
+源码研究已确认 Stroke Filter 在 `fcitx5-chinese-addons` 候选层通过 `CommonCandidateList::setFilter()` 工作，无需进入 LibIME decoder。MoQi V1 将优先复用该框架。
+
+注意：现有 Stroke Filter 对多字候选采用“任意字符匹配即保留”的语义，这不直接等同于本项目希望的逐字/词墨奇交互。目标字/词的约束语义仍需通过 partial selection 与 `ChooseCharFromPhrase` 的后续研究确定。
 
 ## D005 — 尽量不修改 LibIME 核心
 
