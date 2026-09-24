@@ -23,11 +23,11 @@
 重点追踪：
 
 - [ ] Pinyin/Shuangpin 输入链路
-- [ ] Stroke Filter 的完整实现
-- [ ] `FilterByStroke`
-- [ ] `handleStrokeFilter()`
-- [ ] `updateFilter()`
-- [ ] 候选过滤/包装/选择机制
+- [x] Stroke Filter 的完整实现
+- [x] `FilterByStroke`
+- [x] `handleStrokeFilter()`
+- [x] `updateFilter()`
+- [x] 候选过滤/包装/选择机制
 - [ ] partial selection / 从词候选选字相关行为
 - [ ] Android 构建中相关功能是否完整可用
 
@@ -123,4 +123,4 @@ PoC 完成后，根据修改边界决定是否 fork `fcitx5-chinese-addons` 并�
 
 ## 当前下一步
 
-继续阅读 `fcitx5-chinese-addons` Pinyin 源码，完整追踪 Stroke Filter 的数据和调用链，并据此形成 **MoQi Filter V1 最小改造设计**。
+继续追踪 `PinyinContext::selectedLength()`、`selectCandidatesToCursor()`、`candidatesToCursor()` 以及 `ChooseCharFromPhrase`，验证 partial selection 后继续使用 MoQi Filter 的可行性，并据此定义 **MoQi Filter V1 的目标字/词约束语义**。
