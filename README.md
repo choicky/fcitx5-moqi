@@ -15,14 +15,17 @@
 
 ## 当前阶段
 
-当前处于**上游源码研究与技术可行性验证阶段**。在方案明确前，不进行大规模实现。
+Phase 1 上游源码研究已完成，当前处于 **Phase 2 — MoQi Filter V1 PoC**。
 
-当前优先研究：
+当前批次优先完成：
 
-1. `fcitx5-chinese-addons` Pinyin/Shuangpin 的 Stroke Filter 与候选筛选机制；
-2. LibIME 的词典、语言模型、用户学习及候选接口；
-3. 以 Auxiliary Filter 思路最小侵入接入 MoQi Filter（当前只聚焦墨奇）；
-4. Fcitx5 Android 的语音输入与 Android SpeechRecognizer/RecognitionService 集成路径。
+1. MoQi 候选过滤与状态切换；
+2. Backspace/退出辅码状态；
+3. 与现有 Stroke Filter 共存；
+4. Pinyin/Shuangpin 关键行为测试；
+5. 验证过滤后可继续输入、再次使用辅码且不强制整句 commit。
+
+当前暂不进入 Android UI 或语音实现。
 
 ## 文档
 
@@ -33,6 +36,6 @@
 
 ## 上游项目
 
-本项目优先复用上游能力，尽量避免维护不必要的长期 fork。是否 fork `fcitx5-chinese-addons`、`fcitx5-android` 或 LibIME，将在源码研究确认实际修改边界后决定。
+本项目优先复用上游能力，尽量避免维护不必要的长期 fork。Phase 1 已确认并已 fork `fcitx5-chinese-addons` 用于 MoQi Filter V1 PoC；当前不 fork `fcitx5-android` 或 LibIME。
 
 > 当前仓库主要承担项目需求、研究、设计和集成工作的总控角色。
