@@ -9,7 +9,7 @@
 - 以 Fcitx5 Pinyin/Shuangpin + LibIME 为主的中文拼音/双拼输入；
 - 将墨奇码作为按需使用的辅助码，用于候选汉字筛选，而不是作为主输入编码；
 - 保留早期墨奇偏逐字/词的辅码交互，避免“输入辅码即强制提交整句”；
-- 高质量、可替换的语音识别（ASR）；
+- 高质量、可插拔 Provider 的语音识别（ASR），由用户在 Android UI 中选择；
 - ASR 与可选 LLM 后处理解耦；
 - 数据流透明、可审计、可配置。
 
@@ -21,7 +21,7 @@
 
 1. `fcitx5-chinese-addons` Pinyin/Shuangpin 的 Stroke Filter 与候选筛选机制；
 2. LibIME 的词典、语言模型、用户学习及候选接口；
-3. 墨奇码表如何以最小侵入方式接入现有辅助筛选机制；
+3. 以 Auxiliary Filter 思路最小侵入接入 MoQi Filter（当前只聚焦墨奇）；
 4. Fcitx5 Android 的语音输入与 Android SpeechRecognizer/RecognitionService 集成路径。
 
 ## 文档
