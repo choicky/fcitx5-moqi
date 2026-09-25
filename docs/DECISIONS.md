@@ -1,110 +1,149 @@
 # Architecture Decisions
 
-本文件记录已经形成的重要技术决策。决策可以随着源码研究和 PoC 结果被修订或替代，但不应无记录地改变。
+本文件只记录已经接受的重要技术决策。决策可随源码研究和 PoC 结果被明确修订或替代，但不得无记录改变。
 
 ## D001 — Android 为第一目标平台
 
 **状态：Accepted**
 
-优先完成 Android 上的输入体验和架构验证。Windows 等平台后续再研究，避免初期同时解决多平台问题。
+优先完成 Android 输入体验和架构验证。其他平台后续研究。
 
-## D002 — 拼音/双拼为主，墨奇为辅助码
-
-**状态：Accepted**
-
-墨奇不作为主要输入编码。正常输入由 Pinyin/Shuangpin、词库和语言模型完成；仅在需要消除同音歧义时使用墨奇辅助筛选。
-
-## D003 — 偏好早期墨奇交互，不复制新版“句中任意辅助码”
+## D002 — Pinyin/Shuangpin 为主，MoQi 为辅助码
 
 **状态：Accepted**
 
-目标是逐字/词、按需使用辅码。输入辅码不应天然触发整句 commit。完成一个字的筛选后，应尽量能够继续处理其他字词。
+正常输入由 Pinyin/Shuangpin、词库和语言模型完成；MoQi 仅在需要消除歧义时按需筛选候选。
 
-理由：新版“先输入完整句子拼音，再通过句中任意辅助码选择整句并立即上屏”的方式，在候选句仍含错字或句中拼音输错时，局部纠错体验不符合本项目目标。
+## D003 — 采用早期墨奇逐字/词交互
 
-## D004 — 优先复用 Fcitx5 已有辅助筛选机制
+**状态：Accepted**
+
+不复制新版“输入完整句子后通过句中任意辅助码选择并立即提交整句”的模式。MoQi 不应天然触发整句 commit，过滤/选择后应能继续 composition 并再次使用辅码。
+
+## D004 — 将现有 Stroke Filter 最小泛化为 Auxiliary Filter 基础设施
+
+**状态：Accepted**
+
+复用 `fcitx5-chinese-addons` 已有 Stroke Filter 的 trigger handling、mode lifecycle、CandidateList filter、Backspace/Escape、selection 和 composition 协作。
+
+不继续维护独立平行的 Stroke/MoQi trigger 与 mode 状态机。Stroke-specific 与 MoQi-specific filtering algorithm 保持独立。
+
+## D005 — Auxiliary Filter Trigger 与 Filter 实现解耦
+
+**状态：Accepted**
+
+反引号 `` ` `` 为默认 Auxiliary Filter Trigger，仅表达“进入当前配置的 Filter”。
+
+Configured Auxiliary Filter 至少支持：
+
+- Disabled
+- Stroke
+- MoQi
+
+Trigger 不得硬编码为 Stroke 或 MoQi。
+
+## D006 — MoQi 使用 selection-frontier target semantics
+
+**状态：Accepted**
+
+MoQi V1 过滤 current selection frontier 后的目标字符，不复制 Stroke 当前“候选 phrase 中任意字符匹配即可保留”的语义。
+
+## D007 — MoQi V1 复用 LibIME partial selection，不修改 LibIME
 
 **状态：Accepted for V1**
 
-优先研究 `fcitx5-chinese-addons` Pinyin 已有 Stroke Filter，并尝试以新增 MoQi Filter 的方式实现，而不是重新设计辅助码系统。
+复用 `selectedLength()`、`candidatesToCursor()`、`selectCandidatesToCursor()` 等现有能力保留 composition。只有 Phase 2 PoC 证明上层接口不足时才重新评估 LibIME 修改。
 
-目标是保留 Stroke Filter，并新增墨奇筛选能力。
-
-源码研究已确认 Stroke Filter 在 `fcitx5-chinese-addons` 候选层通过 `CommonCandidateList::setFilter()` 工作，无需进入 LibIME decoder。MoQi V1 将优先复用该框架。
-
-注意：现有 Stroke Filter 对多字候选采用“任意字符匹配即保留”的语义，这不直接等同于本项目希望的逐字/词墨奇交互。目标字/词的约束语义仍需通过 partial selection 与 `ChooseCharFromPhrase` 的后续研究确定。
-
-## D005 — MoQi Filter V1 不修改 LibIME 核心
-
-**状态：Accepted for V1**
-
-Phase 1 源码研究已确认，MoQi Filter V1 可优先在 `fcitx5-chinese-addons` 候选过滤层实现。LibIME 继续负责拼音解码、词典、Language Model 和用户学习，V1 不修改 LibIME 核心。
-
-只有后续 PoC 证明现有上层接口无法满足目标交互时，才重新评估 LibIME 修改。
-
-## D006 — Rime 是参考与备选，不是硬依赖
+## D008 — 固定 MoQi table 来源和版本
 
 **状态：Accepted**
 
-Rime/rime-frost + 墨奇已经提供成熟参考，并可作为 fallback。当前优先研究 Fcitx5 原生 Pinyin/Shuangpin + LibIME + MoQi Filter，以评估能否得到更直接、维护边界更清晰的实现。
+使用 `gaboolic/moqima-tables`，固定 commit `6d8ba8f1c57466f358e682baefe11bbd0fe389ab`，当前使用 `moqima_gb18030.txt`。测试不得猜测 MoQi code。
 
-## D007 — 词库更新与用户数据上传解耦
-
-**状态：Accepted**
-
-允许联网下载/更新词库，但不能把“联网更新词库”与“上传用户输入数据”绑定为同一机制。
-
-## D008 — ASR 与 LLM 后处理解耦
+## D009 — Rime 是参考与备选，不是硬依赖
 
 **状态：Accepted**
 
-ASR 负责音频到原始文本；LLM 仅作为可选文本后处理阶段。两者 provider 可以独立配置，LLM 可以完全关闭。
+当前优先 Fcitx5 Pinyin/Shuangpin + LibIME + Auxiliary Filter；Rime/rime-frost 保留为成熟参考和 fallback。
 
-## D009 — 语音不要求完全离线，但数据流必须透明
-
-**状态：Accepted**
-
-允许云端、本地和自建 ASR。必须能够明确录音、上传目标、上传内容、停止条件，以及是否进行后续 LLM 处理。
-
-## D010 — 总仓库与上游 fork 分离；已 fork fcitx5-chinese-addons
+## D010 — 优先复用 Android generic Fcitx configuration UI
 
 **状态：Accepted**
 
-`fcitx5-moqi` 继续作为需求、研究、设计和集成工作的总控仓库。
+Auxiliary Filter selection 优先通过 Fcitx config descriptor 暴露，复用 `fcitx5-android` 现有 ConfigEnum/ConfigKey UI。除非验证不足，不增加 MoQi-specific settings UI。
 
-Phase 1 已确认 MoQi Filter V1 的主要修改面位于 `fcitx5-chinese-addons`，因此已 fork `fcitx5-chinese-addons` 用于 Phase 2 PoC 和相关测试。
-
-当前不 fork `fcitx5-android` 或 LibIME。是否长期维护 `fcitx5-chinese-addons` fork，待 PoC 和上游贡献可行性验证后决定。
-
-## D011 — 暂不确定本仓库 LICENSE
+## D011 — 词库更新与用户数据上传解耦
 
 **状态：Accepted**
 
-在确认未来纳入本仓库的代码、上游许可证及墨奇码表的再分发边界前，不急于选择总仓库 LICENSE。后续在进入代码实现阶段前重新评估。
+允许联网更新词库，但不得把词库更新与上传用户输入历史绑定。
 
-
-## D012 — Auxiliary Filter 抽象，当前 MoQi first
-
-**状态：Accepted**
-
-拼音/双拼继续由 LibIME 产生候选，上层通过 Auxiliary Filter 进行按需候选过滤。当前实现和验证只聚焦 MoQi Filter；Radical、Stroke 等作为未来可扩展 Filter，不为尚未实施的功能过度设计。
-
-MoQi Filter 不应强制 commit 整句；过滤后应尽量保留 composition，使用户能够撤销辅码、继续输入，并对其他字/词再次筛选。
-
-## D013 — ASR Provider 从一开始可插拔
+## D012 — 默认 Voice Trigger 为麦克风按钮
 
 **状态：Accepted**
 
-语音链路采用：
+独立麦克风按钮为默认 Voice Trigger。Trigger 只表示开始/进入语音输入，不绑定任何 ASR Provider。
 
-`Audio Capture -> ASR Provider -> Raw Transcript -> Optional LLM Post Processor -> IME`
-
-不绑定单一厂商或模型。最终由用户在 Fcitx5 Android UI 中选择和配置 ASR Provider。云端、本地、自建和 OpenAI-compatible Provider 均可通过同一抽象接入；ASR 与 LLM 后处理继续保持独立。
-
-## D014 — CI 采用批量验证策略
+## D013 — 长按 Space 可选触发同一个 Voice Input
 
 **状态：Accepted**
 
-相关改动尽量组织成逻辑完整的批次，再统一 push 并触发 CI，避免“一个小改动 -> push -> 等待 Actions -> 再改”的循环。
+后续在 `SpaceLongPressBehavior` 增加 `VoiceInput`。麦克风按钮与长按 Space 必须 dispatch 到同一 Voice Trigger，不建立两套 voice pipeline。
 
-本地可完成的检查优先本地执行；纯文档修改原则上不应触发耗时构建。CI 主要用于阶段性集成验证，可并行的验证尽量一次触发。批量修改仍应保持目标明确、规模可审查。
+## D014 — 优先复用 Fcitx5 Android SpeechRecognizer 工作
+
+**状态：Accepted**
+
+未来 Voice PoC 先研究和复用 upstream Fcitx5 Android 已有麦克风能力及 WIP SpeechRecognizer voice-input 工作，不从零重写 Android speech client。
+
+## D015 — SpeechRecognizer / RecognitionService 为优先 Android speech boundary
+
+**状态：Accepted**
+
+优先采用：
+
+`Fcitx5 Android -> SpeechRecognizer -> RecognitionService`
+
+其中 RecognitionService 是 Android speech implementation 标准边界，不等同于项目内部 ASR Provider abstraction。
+
+## D016 — ASR Provider 独立可插拔
+
+**状态：Accepted**
+
+RecognitionService / Voice Service 后保持独立 ASR Provider 层。更换云端、本地、自建或 OpenAI-compatible Provider 不改变基本 Voice Trigger 交互。
+
+## D017 — ASR 与 LLM 后处理解耦
+
+**状态：Accepted**
+
+ASR 只负责 Audio → Raw Transcript。LLM/Text Post Processor 独立、可关闭，ASR Provider 与 LLM Provider 分别配置。
+
+## D018 — Voice 数据流必须透明可审计
+
+**状态：Accepted**
+
+必须能够确定录音开始/停止、ASR Provider、endpoint、上传数据、Raw Transcript、是否进入 LLM、LLM endpoint 和最终提交文本。
+
+## D019 — 总仓库与上游 fork 分离
+
+**状态：Accepted**
+
+`fcitx5-moqi` 为总控仓库。Phase 2 使用 `choicky/fcitx5-chinese-addons` fork。当前不 fork LibIME；是否 fork `fcitx5-android` 待 Voice PoC 实际修改边界确认。
+
+## D020 — 暂不确定总仓库 LICENSE
+
+**状态：Accepted**
+
+在确认未来纳入代码和上游/码表再分发边界前，不急于选择总仓库 LICENSE。
+
+## D021 — 最小修改、不过度抽象
+
+**状态：Accepted**
+
+Phase 2 不为未来 Filter 建立复杂 Plugin Framework；优先在 `fcitx5-chinese-addons` 完成 MoQi V1，不修改 LibIME 或 Android candidate protocol，除非 PoC 证明必要。
+
+## D022 — CI 采用批量验证策略
+
+**状态：Accepted**
+
+相关改动组成逻辑完整、可审查的批次。push 前先完成源码/API 核对、diff review、格式/静态检查和适用本地测试。GitHub Actions 用于阶段性集成验证，不作为猜测性试错工具；纯文档修改原则上不触发重型 CI。

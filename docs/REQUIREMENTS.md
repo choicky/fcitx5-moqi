@@ -2,119 +2,265 @@
 
 ## 1. 项目目标
 
-开发/研究一套以 **Android 为第一目标平台**的中文输入方案，核心目标是：
+开发/研究一套以 **Android 为第一目标平台**的中文输入方案。优先复用 Fcitx5 生态已有能力，在源码研究和最小 PoC 证明现有接口不足前，不重新实现成熟基础设施。
 
-- 高质量中文拼音/双拼输入；
-- 墨奇辅码；
-- 高质量语音输入；
+核心能力：
+
+- 高质量 Pinyin / Shuangpin；
+- 按需 Auxiliary Filter（当前重点为 MoQi）；
+- 高质量中文语音输入；
+- 可配置 ASR 与可选 LLM 后处理；
 - 数据流透明、可审计、可配置。
 
-Windows 等平台可在 Android 方案成熟后继续研究。
+## 2. 中文主输入
 
-## 2. 键盘输入
+- Pinyin / Shuangpin 为主输入方式。
+- 优先使用 `fcitx5-chinese-addons` + LibIME。
+- 继续利用 LibIME 的候选、语言模型、词典、用户学习和 partial selection。
+- Rime / rime-frost 是成熟参考与备选，不是硬依赖。
+- 除非 PoC 证明现有能力不足，不重新实现拼音解码器，不修改 LibIME 核心。
 
-### 2.1 主输入方式
+## 3. Auxiliary Filter
 
-- 以拼音/双拼为主输入方式。
-- 要求优质词库、语言模型和用户词频学习。
-- 当前优先研究 `fcitx5-chinese-addons` Pinyin/Shuangpin + LibIME。
-- Rime/rime-frost 是成熟参考与备选方案，但不是硬性依赖。
+Auxiliary code 是候选过滤手段，不是主输入编码。
 
-### 2.2 墨奇辅码
+统一模型：
 
-墨奇码用于**按需过滤汉字候选**，而不是作为主要输入编码。
+```text
+Pinyin / Shuangpin
+       ↓
+LibIME Candidates
+       ↓
+Auxiliary Filter Trigger
+       ↓
+Configured Auxiliary Filter
+       ↓
+Disabled / Stroke / MoQi
+```
 
-基本原则：
+默认 Trigger 为反引号 `` ` ``。Trigger 仅表示“进入当前配置的 Auxiliary Filter”，不得硬绑定 Stroke 或 MoQi。
 
-- 正常候选正确时，无需输入辅码。
-- 同音字较多、目标候选靠后或需要精确选字时，再使用墨奇辅码。
-- 优先利用 Fcitx5 已有的 Stroke Filter / 辅助筛选机制增加 MoQi Filter。
-- 尽量不修改 LibIME 核心。
-- 辅码采用 Auxiliary Filter 思路：主输入候选与辅助过滤解耦。
-- 当前实现优先且仅聚焦 MoQi Filter；Radical/Stroke 等仅保留未来扩展能力，不为其提前过度设计。
-- 原有 Stroke Filter 原则上应保留，MoQi Filter 作为新增能力，而不是破坏现有功能。
+当前不得为未来 Filter 建立复杂 Plugin Framework。
 
-### 2.3 交互方式
+### 3.1 复用 Stroke Filter
 
-偏好**早期墨奇的逐字/词辅码交互**。
+应复用并最小泛化 `fcitx5-chinese-addons` 已有 Stroke Filter 基础设施，包括：
 
-不以新版“先输入完整句子的全部拼音，再通过句中任意辅助码选择整句并立即上屏”的模式为目标。
+- `FilterByStroke`
+- `handleStrokeFilter()`
+- `PinyinTabbedCandidateList`
+- filter mode / buffer
+- `CommonCandidateList::setFilter()`
+- Backspace / Escape
+- candidate selection
+- tab actions
+- composition 协作
 
-具体要求：
+不得在可复用该基础设施时继续维护独立平行的 Stroke/MoQi trigger 与 mode 状态机。
 
-- 辅码的语义是筛选/选择目标汉字，不应天然等同于 commit 整句。
-- 对某个字使用辅码后，应尽量允许继续输入、筛选和纠正其他字词。
-- 一个词或较长 composition 中出现错误候选时，应尽量允许局部处理，而不是只能接受整个错误句子。
-- 应尽量减少因句中某个拼音输入错误而必须大范围回退重输的情况。
-- 是否需要更复杂的 composition 内定位/编辑，应依据 Fcitx5/LibIME 现有能力和实际体验决定，不为复制新版“句中任意辅助码”而增加复杂度。
+具体算法保持分离：
 
-## 3. 词库与语言模型
+```text
+Auxiliary Filter
+├── Stroke → reverseLookupStroke() → filterByStroke()
+└── MoQi   → reverseLookupMoQi()   → filterByMoQi()
+```
+
+### 3.2 MoQi 交互
+
+采用早期墨奇的按需逐字/词辅助筛选模型：
+
+1. 正常 Pinyin/Shuangpin 输入；
+2. 出现歧义时进入 Auxiliary Filter；
+3. 输入 MoQi code；
+4. 候选减少；
+5. partial selection；
+6. composition 保留；
+7. 继续输入；
+8. 后续可再次使用 Auxiliary Filter。
+
+MoQi 不得天然触发整句 commit。Backspace 应撤销辅码/过滤状态，Escape 应退出 Auxiliary Filter。
+
+### 3.3 MoQi target semantics
+
+MoQi V1 过滤目标是 **current selection frontier 后的目标字符**：
+
+```text
+selected prefix | unselected composition
+                ^
+          selection frontier
+```
+
+不得照搬 Stroke 当前“候选 phrase 中任意字符匹配即可保留”的语义。
+
+### 3.4 Partial selection
+
+优先复用：
+
+- `PinyinContext::selectedLength()`
+- `candidatesToCursor()`
+- `selectCandidatesToCursor()`
+- `selectCustom()`
+- `cancel()`
+- `ChooseCharFromPhrase`
+
+过滤并选择后应保留 selected prefix，继续解码剩余 Pinyin/Shuangpin，并允许再次进入 Auxiliary Filter。
+
+## 4. MoQi 码表
+
+当前固定来源：
+
+- repository: `gaboolic/moqima-tables`
+- commit: `6d8ba8f1c57466f358e682baefe11bbd0fe389ab`
+- table: `moqima_gb18030.txt`
+
+V1 runtime 主要需要“汉字 → MoQi code”。测试值必须来自固定码表，不得猜测或凭记忆填写。许可证和再分发要求必须保留。
+
+## 5. Android Auxiliary Filter 配置
+
+优先使用 Fcitx generic configuration：
+
+```text
+Auxiliary Filter:
+- Disabled
+- Stroke
+- MoQi
+```
+
+`fcitx5-android` 已有 ConfigEnum/ConfigKey 通用 UI，应优先复用；除非实际验证不足，不增加 MoQi-specific Android settings UI 或修改 candidate frontend protocol。
+
+## 6. 词库与语言模型
 
 - 词库质量优先。
 - 允许联网更新词库。
-- 词库下载/更新与上传用户输入数据必须解耦。
-- 墨奇码表与拼音词库、语言模型应尽量独立：
-  - 词库/LM 决定词语、词频和排序；
-  - 墨奇码表负责候选汉字的辅助筛选。
-- 应充分利用 LibIME 已有的用户词频学习、词典及语言模型能力，除非研究证明存在明显不足。
+- 词库更新与上传用户输入数据完全解耦。
+- 词库/LM 负责词语、词频和排序；MoQi table 负责辅助筛选。
+- 优先利用 LibIME 已有用户学习能力。
 
-## 4. 语音输入
+## 7. Voice Trigger
 
-### 4.1 质量
+Voice Trigger 与 ASR Provider 必须解耦。
 
-语音输入必须达到适合日常使用的中文 ASR 水平，而不只是“能够离线识别”。
+默认入口为独立麦克风按钮；同时允许用户把长按 Space 配置为 Voice Input：
 
-### 4.2 后端
+```text
+Microphone Button ─┐
+                   ├→ same Voice Trigger → Voice Input
+Long-press Space ──┘
+```
 
-允许本地、云端或自建 ASR，包括但不限于：
+现有 `SpaceLongPressBehavior` 后续应增加 `VoiceInput`。该行为只负责 dispatch 到统一 Voice Trigger，不实现独立语音 pipeline。
 
-- 豆包；
-- 阿里云/百炼；
-- FunASR / SenseVoice；
-- sherpa-onnx；
-- OpenAI-compatible ASR；
-- 其他后续验证合适的服务。
+## 8. Android Voice Input
 
-具体后端不是硬依赖。ASR 必须通过可插拔 Provider 接口接入，最终允许用户在 Fcitx5 Android UI 中选择和配置 Provider。
+优先研究和复用 `fcitx5-android` 现有麦克风 UI 及 upstream WIP SpeechRecognizer voice-input 工作，而不是重新实现 Android speech client。
 
-### 4.3 数据流
+优先边界：
 
-语音数据流必须透明、可审计、可配置。至少应能够明确：
+```text
+Fcitx5 Android
+↓
+SpeechRecognizer
+↓
+RecognitionService
+↓
+speech implementation
+```
 
-- 何时开始录音；
-- 何时停止录音；
-- 上传了什么数据；
-- 数据发送给哪个服务/端点；
-- 何时停止上传；
-- ASR 返回了什么；
-- ASR 文本是否继续发送给 LLM。
+Voice layer 应负责 start/stop、权限、lifecycle、partial/final transcript、取消、错误处理和 UI 状态。
 
-不要求完全离线；核心要求是知情、可控和可替换。
+`RecognitionService` 是 Android speech implementation 的标准边界，但不是项目内部 ASR Provider abstraction 本身。
 
-### 4.4 ASR 与 LLM 解耦
+## 9. ASR Provider
 
-流程原则：
+项目内部保持独立 Provider 层：
 
-`Audio -> ASR -> Raw text -> Optional LLM post-processing -> Final text`
+```text
+RecognitionService / Voice Service
+↓
+Configured ASR Provider
+↓
+Raw Transcript
+```
 
-LLM 后处理必须可以完全关闭，可用于：
+允许云端、本地、自建和 OpenAI-compatible Provider，包括但不限于豆包、阿里云、腾讯、讯飞、FunASR/SenseVoice、sherpa-onnx 等。
 
-- 纠错；
-- 标点与断句；
-- 格式化；
-- 口语整理；
-- 翻译；
-- 其他可选文本处理。
+PoC 使用某个 Provider 不得使 Voice Trigger、Audio Capture 或 IME 层绑定该 Provider。
 
-ASR provider 与 LLM provider 不应被强绑定。
+## 10. ASR 与 LLM 解耦
 
-## 5. 工程原则
+```text
+Audio
+↓
+ASR Provider
+↓
+Raw Transcript
+↓
+Optional Text Post Processor
+↓
+Final Transcript
+```
 
-- 当前阶段优先阅读最新上游源码、issue/PR 和官方文档。
-- 不仅依据二手资料推测技术能力。
-- 在方案明确前不急于大规模写代码。
-- 优先最小改造和上游兼容。
-- 尽量避免长期维护大型 fork。
-- 若修改足够通用且许可证/质量合适，应考虑向相关上游提交贡献。
-- 相关改动尽量组成逻辑完整的批次后再 push/触发 CI；避免每个小改动单独触发耗时 Actions。
-- 本地可验证的内容优先本地验证；纯文档修改原则上不触发重型 CI。
+LLM 必须可以完全关闭。ASR Provider 与 LLM Provider 分别选择和配置。LLM 可用于纠错、标点、断句、格式化、口语整理、翻译等。
+
+## 11. 语音隐私与数据流
+
+必须能够明确：
+
+- 何时开始/停止录音；
+- 谁打开 microphone；
+- 当前 ASR Provider；
+- 上传什么、发送到哪个 endpoint、何时停止上传；
+- ASR 返回的 Raw Transcript；
+- 是否继续发送给 LLM；
+- LLM Provider/endpoint；
+- 最终提交给 IME 的文本。
+
+启用词库更新不等于上传用户输入；启用 Voice Trigger 不等于选择某家云 ASR；启用 ASR 不等于把 transcript 自动发送给 LLM。
+
+## 12. 最小修改边界
+
+### MoQi / Auxiliary Filter
+
+优先仅修改 `fcitx5-chinese-addons`。当前不修改：
+
+- LibIME；
+- Android candidate frontend protocol；
+- MoQi-specific Android UI。
+
+### Voice
+
+后续优先复用 `fcitx5-android` 现有能力、upstream SpeechRecognizer 工作和 Android `SpeechRecognizer/RecognitionService`。Provider-specific 实现与 Voice Trigger 分离。
+
+## 13. Phase 2 PoC Exit Criteria
+
+必须端到端验证：
+
+```text
+Pinyin/Shuangpin
+→ candidates
+→ Auxiliary Filter Trigger
+→ configured MoQi
+→ real MoQi code
+→ candidate filtering
+→ partial selection
+→ composition preserved
+→ continue input
+→ Auxiliary Filter Trigger again
+→ second filtering/selection
+```
+
+同时验证：
+
+1. Pinyin；
+2. Shuangpin；
+3. Disabled / Stroke / MoQi；
+4. 真实固定 MoQi table；
+5. Backspace；
+6. Escape；
+7. 不强制整句 commit；
+8. Stroke regression；
+9. continued composition；
+10. repeated Auxiliary Filter use。
+
+PoC 证明现有接口不足前，不修改 LibIME。

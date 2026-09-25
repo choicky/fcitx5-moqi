@@ -4,28 +4,61 @@
 
 ## 目标
 
-项目以 Fcitx5 Android 为第一目标平台，研究并实现：
-
-- 以 Fcitx5 Pinyin/Shuangpin + LibIME 为主的中文拼音/双拼输入；
-- 将墨奇码作为按需使用的辅助码，用于候选汉字筛选，而不是作为主输入编码；
-- 保留早期墨奇偏逐字/词的辅码交互，避免“输入辅码即强制提交整句”；
-- 高质量、可插拔 Provider 的语音识别（ASR），由用户在 Android UI 中选择；
+- 以 Fcitx5 Pinyin/Shuangpin + LibIME 为中文主输入；
+- 墨奇码作为按需 Auxiliary Filter，而不是主输入编码；
+- 复用并最小泛化 `fcitx5-chinese-addons` 现有 Stroke Filter 基础设施；
+- 保留早期墨奇偏逐字/词的辅助筛选体验，不因辅码强制提交整句；
+- 提供高质量中文语音输入，Voice Trigger 与 ASR Provider 解耦；
 - ASR 与可选 LLM 后处理解耦；
 - 数据流透明、可审计、可配置。
 
+## 核心架构
+
+```text
+Pinyin / Shuangpin
+       ↓
+  LibIME Candidates
+       ↓
+Auxiliary Filter Trigger (`)
+       ↓
+Configured Auxiliary Filter
+   Disabled / Stroke / MoQi
+```
+
+```text
+Microphone / Long-press Space
+       ↓
+    Voice Trigger
+       ↓
+SpeechRecognizer / RecognitionService
+       ↓
+Configured ASR Provider
+       ↓
+Raw Transcript
+       ↓
+Optional LLM Post Processor
+       ↓
+IME
+```
+
+Trigger 只表达用户意图；具体 Filter / Provider 由配置决定。
+
 ## 当前阶段
 
-Phase 1 上游源码研究已完成，当前处于 **Phase 2 — MoQi Filter V1 PoC**。
+Phase 1 已完成，当前处于 **Phase 2 — MoQi Auxiliary Filter V1 PoC**。
 
-当前批次优先完成：
+当前重点是把此前独立的 MoQi mode/trigger 重构为基于上游 Stroke Filter 的统一 Auxiliary Filter，并验证：
 
-1. MoQi 候选过滤与状态切换；
-2. Backspace/退出辅码状态；
-3. 与现有 Stroke Filter 共存；
-4. Pinyin/Shuangpin 关键行为测试；
-5. 验证过滤后可继续输入、再次使用辅码且不强制整句 commit。
+- Disabled / Stroke / MoQi 配置；
+- MoQi selection-frontier 过滤；
+- partial selection；
+- composition 保留；
+- Backspace / Escape；
+- 继续输入并再次使用 Auxiliary Filter；
+- Pinyin / Shuangpin 等价核心行为；
+- Stroke 回归。
 
-当前暂不进入 Android UI 或语音实现。
+当前不修改 LibIME，不进入完整语音实现。
 
 ## 文档
 
@@ -34,8 +67,11 @@ Phase 1 上游源码研究已完成，当前处于 **Phase 2 — MoQi Filter V1 
 - [技术决策](docs/DECISIONS.md)
 - [研究记录](research/README.md)
 
-## 上游项目
+## 上游与 fork
 
-本项目优先复用上游能力，尽量避免维护不必要的长期 fork。Phase 1 已确认并已 fork `fcitx5-chinese-addons` 用于 MoQi Filter V1 PoC；当前不 fork `fcitx5-android` 或 LibIME。
+项目优先复用上游能力并缩小长期 fork 面。
 
-> 当前仓库主要承担项目需求、研究、设计和集成工作的总控角色。
+- 总控仓库：`fcitx5-moqi`
+- Phase 2 fork：`choicky/fcitx5-chinese-addons`
+- 当前不 fork LibIME
+- `fcitx5-android` 是否 fork，待后续 Voice PoC 的实际修改边界确认

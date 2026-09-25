@@ -1,145 +1,199 @@
 # Roadmap
 
-> 本路线图描述当前研究顺序，不代表所有阶段都必须按原方案实施。源码研究结果可以触发路线调整。
+> 路线图按当前已验证架构安排；源码研究或 PoC 结果可以触发有记录的调整。
 
 ## Phase 0 — 需求确认
 
-**状态：基本完成**
+**状态：COMPLETE**
 
-- [x] Android 作为第一目标平台
-- [x] 拼音/双拼作为主输入方式
-- [x] 墨奇作为按需辅助码
-- [x] 明确偏好早期逐字/词辅码交互
-- [x] 明确辅码不应强制 commit 整句
-- [x] 明确语音可联网，但数据流必须透明可控
-- [x] 明确 ASR 与 LLM 后处理解耦
+已明确 Android first、Pinyin/Shuangpin 主输入、MoQi Auxiliary Filter、早期逐字/词交互、Trigger/Implementation 解耦、Voice Trigger、ASR/LLM 解耦及隐私边界。
 
-## Phase 1 — 上游源码研究
+## Phase 1 — 上游源码与架构研究
 
 **状态：COMPLETE**
 
-> 源码研究已完成 Phase 2 PoC 所需的最小修改边界确认：MoQi Filter V1 以 `fcitx5-chinese-addons` 候选过滤层为主，不修改 LibIME 核心，并已 fork `fcitx5-chinese-addons` 进入实现验证。
+已完成 Phase 2 所需关键研究：
 
-### 1.1 Fcitx5 Chinese Addons
+- Stroke Filter → CandidateList → composition 调用链；
+- `CommonCandidateList::setFilter()`；
+- LibIME partial selection / `selectedLength()` / `candidatesToCursor()` / `selectCandidatesToCursor()`；
+- Android TabbedCandidateList plumbing；
+- Android generic Fcitx config UI；
+- MoQi target semantics；
+- MoQi table 来源、版本、许可证和实际数据验证；
+- MoQi reverse lookup foundation；
+- Fcitx5 Android 现有 voice UI 与 upstream SpeechRecognizer 工作；
+- Android SpeechRecognizer / RecognitionService 边界。
 
-重点追踪：
+结论：Phase 2 优先只修改 `fcitx5-chinese-addons`，当前无需修改 LibIME 或 Android candidate protocol。
 
-- [ ] Pinyin/Shuangpin 输入链路
-- [x] Stroke Filter 的完整实现
-- [x] `FilterByStroke`
-- [x] `handleStrokeFilter()`
-- [x] `updateFilter()`
-- [x] 候选过滤/包装/选择机制
-- [ ] partial selection / 从词候选选字相关行为
-- [ ] Android 构建中相关功能是否完整可用
-
-目标：确定 MoQi Filter 是否可以主要在 `fcitx5-chinese-addons` 层完成。
-
-### 1.2 LibIME
-
-- [ ] 确认 PinyinContext 与候选接口
-- [ ] 确认词典、Language Model、用户学习机制
-- [ ] 确认 MoQi Filter V1 是否无需修改 LibIME
-- [ ] 只有确有必要时才研究 decoder/lattice 约束接口
-
-### 1.3 墨奇码表
-
-- [ ] 确认权威/当前码表来源
-- [ ] 核实许可证与再分发条件
-- [ ] 明确“汉字 -> 墨奇码”的数据结构
-- [ ] 设计构建时转换和版本固定方式
-
-### Phase 1 退出条件
-
-形成一份明确的 MoQi Filter 最小改造设计，回答：
-
-1. 修改哪些上游组件；
-2. 是否需要 fork；
-3. 是否需要修改 LibIME；
-4. 码表如何加载；
-5. Android 如何暴露/配置该功能；
-6. 第一版需要哪些测试。
-
-## Phase 2 — MoQi Filter PoC
+## Phase 2 — MoQi Auxiliary Filter V1 PoC
 
 **状态：IN PROGRESS**
 
-当前批次按“批量开发、阶段性 CI”一次完成候选过滤、状态切换、Backspace/退出、Stroke 共存以及 Pinyin/Shuangpin 关键测试，再统一触发 CI。
+### 目标
 
-目标：
+把此前平行的 MoQi/Stroke mode 设计重构为基于上游 Stroke Filter 的统一 Auxiliary Filter，并完成真实端到端 PoC。
 
-- [ ] Pinyin 可使用 MoQi Filter
-- [ ] Shuangpin 可使用 MoQi Filter
-- [ ] 墨奇码只负责候选筛选
-- [ ] 使用辅码不会强制提交整句
-- [ ] 不破坏原有 Stroke Filter
-- [ ] 不影响 LibIME 原有词库、LM 和用户学习
-- [ ] Backspace 可撤销辅码/过滤状态
-- [ ] 辅码过滤后可继续输入 Pinyin/Shuangpin
-- [ ] 可继续对后续其他字/词再次使用辅码
-- [ ] 先用最小墨奇码表验证状态机，再接入完整码表
+### 当前批次
 
-已 fork `fcitx5-chinese-addons` 用于 MoQi Filter V1 PoC；PoC 完成后再根据维护成本与上游兼容性决定长期 fork/贡献策略。
+- [ ] 将现有 Stroke trigger/mode 最小泛化为 Auxiliary Filter；
+- [ ] 增加 Disabled / Stroke / MoQi 配置；
+- [ ] 保留 Stroke-specific filter；
+- [ ] 接入现有 MoQi reverse lookup；
+- [ ] 实现 selection-frontier MoQi filtering；
+- [ ] Backspace / Escape；
+- [ ] partial selection；
+- [ ] composition 保留；
+- [ ] 继续输入；
+- [ ] 再次使用 Auxiliary Filter；
+- [ ] Pinyin / Shuangpin 等价核心行为；
+- [ ] Stroke regression；
+- [ ] 验证 generic Android config exposure。
 
-## Phase 3 — Android 集成与输入体验验证
+### 预计修改边界
 
-**状态：未开始**
+主要：`fcitx5-chinese-addons`
 
-- [ ] Android 构建与安装
-- [ ] 候选栏/过滤入口交互
-- [ ] 连续输入
-- [ ] 词语与单字辅助筛选
-- [ ] Backspace/取消选择
-- [ ] 用户词频学习
-- [ ] 性能与稳定性
-- [ ] 与早期墨奇实际使用体验比较
+当前不修改：
 
-只有实际体验证明必要时，再研究更复杂的 composition 内定位和局部编辑。
+- LibIME；
+- Android candidate frontend protocol；
+- MoQi-specific Android UI。
 
-## Phase 4 — Voice Architecture
+### Exit Criteria
 
-**状态：未开始**
+以下流程端到端成立：
 
-架构固定为 `Audio Capture -> ASR Provider -> Raw Transcript -> Optional LLM Post Processor -> IME`。ASR Provider 从一开始可插拔，不绑定单一厂商或模型，最终由用户在 Fcitx5 Android UI 中选择。
+```text
+Pinyin/Shuangpin
+→ candidates
+→ Auxiliary Filter Trigger
+→ configured MoQi
+→ real MoQi code
+→ candidate filtering
+→ partial selection
+→ composition preserved
+→ continue input
+→ Auxiliary Filter Trigger again
+→ second filtering/selection
+```
 
-- [ ] 跟踪 Fcitx5 Android 当前语音输入上游实现
-- [ ] 研究 Android SpeechRecognizer / RecognitionService
-- [ ] 定义独立 ASR Provider 接口
-- [ ] 定义 Fcitx5 Android UI 的 Provider 选择与配置入口
-- [ ] 定义录音、上传、停止和审计边界
-- [ ] 确定是否可避免修改 Fcitx5 Android 主程序
+同时要求 Disabled、Stroke、Backspace、Escape 均正确，测试只使用固定真实 MoQi table 数据。
 
-## Phase 5 — ASR PoC
+Phase 2 Exit Criteria 满足前，不进入完整 Android UI 或 Voice 实现。
 
-**状态：未开始**
+## Phase 3 — Full MoQi / Android Integration
 
-选取有代表性的本地/云端方案验证：
+**状态：NOT STARTED**
 
-- [ ] 豆包 / 阿里云 / 腾讯云 / 讯飞等代表性云端 ASR
-- [ ] OpenAI-compatible ASR
-- [ ] sherpa-onnx / FunASR / SenseVoice 等本地或自建 ASR
-- [ ] provider 切换
-- [ ] 流式/非流式识别
-- [ ] 中文识别质量与延迟
-- [ ] 数据流可见性
+Phase 2 成功后：
+
+- 完整固定 MoQi table 集成；
+- 最终 build-time transformation / version update policy；
+- edge cases 与完整测试；
+- Android 构建、安装和实际输入体验；
+- Auxiliary Filter 配置体验；
+- 用户学习、性能和稳定性；
+- 评估向上游贡献及长期 fork 必要性。
+
+## Phase 4 — Voice Input PoC
+
+**状态：NOT STARTED**
+
+优先复用：
+
+- Fcitx5 Android 现有 microphone UI；
+- upstream WIP SpeechRecognizer voice-input 工作；
+- Android `SpeechRecognizer`；
+- Android `RecognitionService`。
+
+验证：
+
+```text
+Microphone
+→ Voice Trigger
+→ SpeechRecognizer
+→ RecognitionService
+→ ASR
+→ Raw Transcript
+→ IME
+```
+
+并验证：
+
+```text
+Long-press Space
+→ same Voice Trigger
+```
+
+Exit Criteria：
+
+- microphone 与可选 long-press Space 进入同一 voice path；
+- permission/lifecycle/start/stop/cancel 正确；
+- partial/final transcript 正确；
+- Voice Trigger 不绑定 ASR vendor；
+- ASR implementation boundary 明确；
+- 数据流可审计。
+
+## Phase 5 — ASR Provider Architecture / PoC
+
+**状态：NOT STARTED**
+
+根据 Phase 4 实际需求建立最小 Provider abstraction，验证代表性的：
+
+- cloud ASR；
+- OpenAI-compatible；
+- local/self-hosted ASR；
+- provider switching；
+- streaming/non-streaming；
+- 中文质量、延迟和数据流。
+
+不在 Voice PoC 前过度设计 Provider framework。
 
 ## Phase 6 — Optional LLM Post-processing
 
-**状态：未开始**
+**状态：NOT STARTED**
 
-- [ ] 与 ASR 完全解耦
-- [ ] 可关闭
-- [ ] 纠错/标点/格式化
-- [ ] 可配置 provider
-- [ ] 明确发送给 LLM 的文本范围和隐私边界
+实现：
+
+```text
+ASR
+→ Raw Transcript
+→ Optional Text Post Processor
+→ Final Transcript
+```
+
+要求可完全关闭、与 ASR Provider 独立、LLM Provider 独立配置，并明确发送文本和隐私边界。
+
+## Phase 7 — Android Product Integration
+
+**状态：NOT STARTED**
+
+最终整合：
+
+- Auxiliary Filter settings；
+- Voice settings；
+- ASR Provider settings；
+- optional LLM settings；
+- privacy/data-flow UI；
+- packaging/release。
+
+## Phase 8 — Additional Platforms
+
+**状态：NOT STARTED**
+
+Android 架构稳定后再评估 Windows、Linux、macOS、iOS，并保持 Trigger / Configured Implementation 分离。
 
 ## 工程节奏
 
-- 相关改动尽量组成逻辑完整的批次后再 push/触发 CI。
-- 本地可完成的检查优先本地执行；纯文档改动原则上不触发耗时构建。
-- CI 作为阶段性验证节点使用；可并行的验证尽量一次触发，避免每个小改动都等待 Actions。
-- 批量不等于堆积不可审查的大改动，每个批次仍需目标明确。
+- 修改前核对源码/API/现有测试；
+- 逻辑完整的小批次开发；
+- push 前 diff review、格式/静态检查和适用本地测试；
+- GitHub Actions 仅作阶段性集成验证；
+- 不通过反复提交猜测性修复；
+- docs-only 原则上不触发重型 CI。
 
 ## 当前下一步
 
-推进 **MoQi Filter V1 PoC 当前批次**：完成候选过滤、状态切换、Backspace/退出、Stroke Filter 共存及 Pinyin/Shuangpin 关键测试；本地验证后统一触发阶段性 CI。Phase 2 Exit Criteria 满足前，不进入 Android UI 或语音实现。
+完成 Phase 2 Auxiliary Filter 重构及完整 PoC 批次，本地审查通过后再统一 push/触发阶段性 CI。
