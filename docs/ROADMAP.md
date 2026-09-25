@@ -29,7 +29,7 @@
 
 ## Phase 2 — MoQi Auxiliary Filter V1 PoC
 
-**状态：IN PROGRESS**
+**状态：COMPLETE**
 
 ### 目标
 
@@ -49,7 +49,7 @@
 - [x] 再次使用 Auxiliary Filter；
 - [x] Pinyin / Shuangpin 等价核心行为；
 - [x] Stroke regression；
-- [ ] 验证 generic Android config exposure（仅完成进程内契约验证，实机验证未做）。
+- [x] 验证 generic Android config exposure（进程内契约 + Android 实机）。
 
 实现已提交到 `choicky/fcitx5-chinese-addons` 的 `feature/moqi-filter` 分支，当前 tip 为 `f903176f8ffe970bd9e4baf3d974d6b3828c85c5`，对应 PR #1。源码已包含上述已勾选能力及 Pinyin/Shuangpin 自动化测试。
 
@@ -59,7 +59,7 @@ Stroke regression 的证据是上游既有测试 `testActionInStrokeFilter`、`t
 
 此前 `testAuxiliaryFilterConfigContract` 含一条在该测试环境下结构性无法成立的断言（`reloadConfig()` 之后按输入法配置取值），触发 `FCITX_ASSERT` 中止整个测试二进制，导致其后所有 Stroke / MoQi 测试从未执行。该断言已移除并在测试源码中注明原因。
 
-Android generic config exposure 目前只有进程内验证：config descriptor 把 AuxiliaryFilter 暴露为 Enum（Type / DefaultValue / Enum[i] / EnumI18n[i]），且 `setConfigForInputMethod()` → `getConfigForInputMethod()` 对 Disabled / Stroke / MoQi 三个值往返一致。磁盘持久化与 reload 后的取值无法在单元测试框架内验证：测试环境以 `SkipUserPath` 构造 `StandardPaths`，`userPath(PkgConfig)` 为空，`safeSaveAsIni()` 无处可写、`readAsIni()` 读不到文件，`Configuration::load()` 于是把所有选项 reset 为默认值。该项需 Android 实机验证后才能勾选。
+Android generic config exposure 目前只有进程内验证：config descriptor 把 AuxiliaryFilter 暴露为 Enum（Type / DefaultValue / Enum[i] / EnumI18n[i]），且 `setConfigForInputMethod()` → `getConfigForInputMethod()` 对 Disabled / Stroke / MoQi 三个值往返一致。磁盘持久化与 reload 后的取值无法在单元测试框架内验证：测试环境以 `SkipUserPath` 构造 `StandardPaths`，`userPath(PkgConfig)` 为空，`safeSaveAsIni()` 无处可写、`readAsIni()` 读不到文件，`Configuration::load()` 于是把所有选项 reset 为默认值。该项已于 2026-09-25 在 Android 实机（arm64-v8a 测试 APK）验证通过：`Auxiliary Filter` 显示为 Disabled / Stroke / MoQi 三选一，重启后保持所选值，按反引号触发后按墨奇码正常筛选候选，Stroke 与 Disabled 回归正常。该结果由项目所有者实机验证并报告，非自动化测试得出。
 
 为实机验证准备了测试 APK：`choicky/fcitx5-android` 分支 `moqi-test-apk` 的 workflow `MoQi test APK` 会把 `fcitx5-chinese-addons` submodule 切到 `feature/moqi-filter`、把墨奇表按固定 commit 与 SHA256 放进 prebuilt assets、给 debug 包加 `.debug` 包名后缀（可与官方应用共存），产出 arm64-v8a debug APK，并在打包后断言 APK 内含码表、auxiliary filter 代码与 `.debug` 包名。最近一次成功运行：run `36127155083`，对应 addon 提交 `f903176`。
 
@@ -213,4 +213,9 @@ Android 架构稳定后再评估 Windows、Linux、macOS、iOS，并保持 Trigg
 
 ## 当前下一步
 
-在 Android 实机上验证 Auxiliary Filter 配置项的显示、持久化与实际生效；这是 Phase 2 最后一个未勾选项，自动化测试无法替代。全部 Exit Criteria 通过后再将 Phase 2 标记为 COMPLETE。
+Phase 2 的 Exit Criteria 已全部满足，进入 Phase 3 — Full MoQi / Android Integration。优先项：
+
+- Android 侧墨奇表的正式分发方案（见 Phase 2 记录的打包发现：不能依赖 addon 的 `install(FILES ...)`）；
+- 固定 MoQi table 的 build-time transformation 与版本更新策略；
+- Android 构建、安装与实际输入体验，含 Auxiliary Filter 配置体验；
+- edge cases 补测，以及向上游贡献 / 长期 fork 必要性评估。
