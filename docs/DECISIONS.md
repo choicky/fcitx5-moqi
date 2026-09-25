@@ -85,3 +85,30 @@ ASR 负责音频到原始文本；LLM 仅作为可选文本后处理阶段。两
 **状态：Accepted**
 
 在确认未来纳入本仓库的代码、上游许可证及墨奇码表的再分发边界前，不急于选择总仓库 LICENSE。后续在进入代码实现阶段前重新评估。
+
+
+## D012 — Auxiliary Filter 抽象，当前 MoQi first
+
+**状态：Accepted**
+
+拼音/双拼继续由 LibIME 产生候选，上层通过 Auxiliary Filter 进行按需候选过滤。当前实现和验证只聚焦 MoQi Filter；Radical、Stroke 等作为未来可扩展 Filter，不为尚未实施的功能过度设计。
+
+MoQi Filter 不应强制 commit 整句；过滤后应尽量保留 composition，使用户能够撤销辅码、继续输入，并对其他字/词再次筛选。
+
+## D013 — ASR Provider 从一开始可插拔
+
+**状态：Accepted**
+
+语音链路采用：
+
+`Audio Capture -> ASR Provider -> Raw Transcript -> Optional LLM Post Processor -> IME`
+
+不绑定单一厂商或模型。最终由用户在 Fcitx5 Android UI 中选择和配置 ASR Provider。云端、本地、自建和 OpenAI-compatible Provider 均可通过同一抽象接入；ASR 与 LLM 后处理继续保持独立。
+
+## D014 — CI 采用批量验证策略
+
+**状态：Accepted**
+
+相关改动尽量组织成逻辑完整的批次，再统一 push 并触发 CI，避免“一个小改动 -> push -> 等待 Actions -> 再改”的循环。
+
+本地可完成的检查优先本地执行；纯文档修改原则上不应触发耗时构建。CI 主要用于阶段性集成验证，可并行的验证尽量一次触发。批量修改仍应保持目标明确、规模可审查。
