@@ -158,18 +158,21 @@ Phase 2 不为未来 Filter 建立复杂 Plugin Framework；优先在 `fcitx5-ch
 
 磁盘持久化与 reload 后取值必须在 Android 实机验证：测试环境以 `SkipUserPath` 构造 `StandardPaths`，`userPath(PkgConfig)` 为空，`safeSaveAsIni()` 无处可写、`readAsIni()` 读不到文件，`Configuration::load()` 会把所有选项 reset 为默认值。
 
-## D024 — Android 侧墨奇表在 app configure 阶段获取，并作为 prebuilt-assets 安装
+## D024 — 墨奇表由 addon 在 configure 阶段获取，并经其 config component 分发到 Android
 
 **状态：Accepted**
 
-`fcitx5-android` 只为库安装 `config` / `translation` 两个 component，且这两个 component 的安装发生在那两个库的原生构建**之前**；而 `fcitx5-chinese-addons` 的码表是构建期（`moqi-table` target）生成的，因此无法经由 addon 的 install 规则进入 APK（实测过程见 ROADMAP 中"被否决的方案"）。
+`fcitx5-android` 会把 addon 的 `config` / `translation` component 安装进 APK assets，且该安装发生在 addon 原生构建**之前**。因此构建期（target）生成的文件无法经此路径进入 APK；只要文件在 **configure 阶段**已经存在，就能经 addon 自己的 `install(... COMPONENT config)` 进入 APK。
 
-决定：在 `fcitx5-android` 的 `app/src/main/cpp/CMakeLists.txt` 中，于 **configure 阶段**按固定上游 commit（`6d8ba8f1c57466f358e682baefe11bbd0fe389ab`）下载 `moqima_gb18030.txt` 并由 CMake 校验 SHA256，再以 `prebuilt-assets` component 安装到 `${FCITX_INSTALL_PKGDATADIR}/pinyinhelper`。
+决定：`fcitx5-chinese-addons` 在 configure 阶段按固定上游 commit（`6d8ba8f1c57466f358e682baefe11bbd0fe389ab`）下载 `moqima_gb18030.txt` 并由 CMake 校验 SHA256（已存在且哈希一致的文件会被复用，因此只有首次 configure 需要联网），再以 `config` component 安装。**`fcitx5-android` 侧无需任何代码改动。**
 
-考虑过并否决的替代方案：
+pin（commit / SHA256 / URL）集中在 `modules/pinyinhelper/moqima-gb18030.cmake` 一处，避免多个消费者各写一份；更新流程写在该文件注释中。
 
-- addon 端 `COMPONENT config`：安装早于 addon 原生构建，构建期生成的文件不存在，实测失败；
-- 数据放入 `fcitx5-android/prebuilt` 并 fork 该仓库 + 改 submodule URL：最贴近上游既有做法，但需要额外 fork 一个二进制数据仓库；
-- 把 1.44 MB 码表提交进代码仓库：与上游"下载并校验哈希"的既有做法相悖。
+考虑过的替代方案：
 
-后续评估向上游贡献时，推荐路径是把该表加入上游 `fcitx5-android/prebuilt` 的 `chinese-addons-data`，届时可移除本条所述 fork 内机制。
+- 在 `fcitx5-android` 的 app CMakeLists 于 configure 阶段取表并以 `prebuilt-assets` 安装：可行且已验证（run `36131495456`），但会给 Android 侧引入 MoQi 专属改动、扩大长期 fork 面，故弃用；
+- addon 保持 `fcitx5_download` 构建期下载 + `COMPONENT config`：实测失败（run `36130867729`），安装时文件尚不存在；
+- 把表放入 `fcitx5-android/prebuilt` 的 `chinese-addons-data` 并 fork 该数据仓库：与上游既有做法最一致，但需额外 fork 一个二进制数据仓库，留作上游贡献路径；
+- 把 1.44 MB 码表提交进代码仓库：与上游“下载并校验哈希”的既有做法相悖。
+
+副作用：墨奇表的分发不再需要 fork `fcitx5-android`；stock fcitx5-android 使用本分支的 addon 子模块即可打包该表。
