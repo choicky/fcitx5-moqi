@@ -48,12 +48,18 @@
 - [x] 继续输入；
 - [x] 再次使用 Auxiliary Filter；
 - [x] Pinyin / Shuangpin 等价核心行为；
-- [ ] Stroke regression；
-- [ ] 验证 generic Android config exposure。
+- [x] Stroke regression；
+- [ ] 验证 generic Android config exposure（仅完成进程内契约验证，实机验证未做）。
 
-实现已提交到 `choicky/fcitx5-chinese-addons` 的 `feature/moqi-filter` 分支，当前 tip 为 `e6ffb2b9df5cd0f26f27c44d4504d515281500fb`，对应 PR #1。源码已包含上述已勾选能力及 Pinyin/Shuangpin 自动化测试。
+实现已提交到 `choicky/fcitx5-chinese-addons` 的 `feature/moqi-filter` 分支，当前 tip 为 `f903176f8ffe970bd9e4baf3d974d6b3828c85c5`，对应 PR #1。源码已包含上述已勾选能力及 Pinyin/Shuangpin 自动化测试。
 
-当前 CI 的 clang-format 检查未通过，因此 build/test job 被跳过；在格式修复、完整 CI、Stroke 回归和 Android generic config 实机验证完成前，Phase 2 保持 IN PROGRESS。
+CI（run `36121191299`，tip `f903176`）三个 job 全部通过：clang-format、Build and test (gcc)、Build and test (clang)；ctest 9/9 全部通过，其中 `testpinyinhelper` 用固定码表验证墨奇反查，`testpinyin` 覆盖 Stroke / MoQi / Disabled、partial selection、继续输入与 config 契约。
+
+Stroke regression 的证据是上游既有测试 `testActionInStrokeFilter`、`testPinyinTabFilter`、`testPinyinTabFilterWithSeparator` 在重构后通过（仅新增显式设置 `AuxiliaryFilter=Stroke`，其余过滤流程未改）。
+
+此前 `testAuxiliaryFilterConfigContract` 含一条在该测试环境下结构性无法成立的断言（`reloadConfig()` 之后按输入法配置取值），触发 `FCITX_ASSERT` 中止整个测试二进制，导致其后所有 Stroke / MoQi 测试从未执行。该断言已移除并在测试源码中注明原因。
+
+Android generic config exposure 目前只有进程内验证：config descriptor 把 AuxiliaryFilter 暴露为 Enum（Type / DefaultValue / Enum[i] / EnumI18n[i]），且 `setConfigForInputMethod()` → `getConfigForInputMethod()` 对 Disabled / Stroke / MoQi 三个值往返一致。磁盘持久化与 reload 后的取值无法在单元测试框架内验证：测试环境以 `SkipUserPath` 构造 `StandardPaths`，`userPath(PkgConfig)` 为空，`safeSaveAsIni()` 无处可写、`readAsIni()` 读不到文件，`Configuration::load()` 于是把所有选项 reset 为默认值。该项需 Android 实机验证后才能勾选。
 
 ### 预计修改边界
 
@@ -200,4 +206,4 @@ Android 架构稳定后再评估 Windows、Linux、macOS、iOS，并保持 Trigg
 
 ## 当前下一步
 
-修复 `fcitx5-chinese-addons` PR #1 的 clang-format 差异并重新运行完整 CI；随后完成 Stroke 回归和 Android generic config exposure 验证。全部 Exit Criteria 通过后再将 Phase 2 标记为 COMPLETE。
+在 Android 实机上验证 Auxiliary Filter 配置项的显示、持久化与实际生效；这是 Phase 2 最后一个未勾选项，自动化测试无法替代。全部 Exit Criteria 通过后再将 Phase 2 标记为 COMPLETE。
