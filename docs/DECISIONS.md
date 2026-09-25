@@ -34,13 +34,13 @@
 
 注意：现有 Stroke Filter 对多字候选采用“任意字符匹配即保留”的语义，这不直接等同于本项目希望的逐字/词墨奇交互。目标字/词的约束语义仍需通过 partial selection 与 `ChooseCharFromPhrase` 的后续研究确定。
 
-## D005 — 尽量不修改 LibIME 核心
+## D005 — MoQi Filter V1 不修改 LibIME 核心
 
-**状态：Provisional**
+**状态：Accepted for V1**
 
-LibIME 继续负责拼音解码、词典、Language Model 和用户学习。MoQi Filter 原则上应位于更上层的候选筛选逻辑。
+Phase 1 源码研究已确认，MoQi Filter V1 可优先在 `fcitx5-chinese-addons` 候选过滤层实现。LibIME 继续负责拼音解码、词典、Language Model 和用户学习，V1 不修改 LibIME 核心。
 
-只有源码研究证明现有接口不足以实现目标交互时，才考虑修改 LibIME。
+只有后续 PoC 证明现有上层接口无法满足目标交互时，才重新评估 LibIME 修改。
 
 ## D006 — Rime 是参考与备选，不是硬依赖
 
@@ -66,19 +66,15 @@ ASR 负责音频到原始文本；LLM 仅作为可选文本后处理阶段。两
 
 允许云端、本地和自建 ASR。必须能够明确录音、上传目标、上传内容、停止条件，以及是否进行后续 LLM 处理。
 
-## D010 — 当前总仓库不等同于上游 fork
+## D010 — 总仓库与上游 fork 分离；已 fork fcitx5-chinese-addons
 
 **状态：Accepted**
 
-`fcitx5-moqi` 当前作为需求、研究、设计和集成工作的总控仓库。
+`fcitx5-moqi` 继续作为需求、研究、设计和集成工作的总控仓库。
 
-暂不 fork：
+Phase 1 已确认 MoQi Filter V1 的主要修改面位于 `fcitx5-chinese-addons`，因此已 fork `fcitx5-chinese-addons` 用于 Phase 2 PoC 和相关测试。
 
-- `fcitx5-android`
-- `fcitx5-chinese-addons`
-- LibIME
-
-待 Phase 1 确认实际修改边界后，再精准 fork 必须修改的上游项目。当前最可能需要 fork 的候选是 `fcitx5-chinese-addons`，但尚未定案。
+当前不 fork `fcitx5-android` 或 LibIME。是否长期维护 `fcitx5-chinese-addons` fork，待 PoC 和上游贡献可行性验证后决定。
 
 ## D011 — 暂不确定本仓库 LICENSE
 
