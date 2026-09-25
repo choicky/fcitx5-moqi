@@ -30,6 +30,8 @@ Windows 等平台可在 Android 方案成熟后继续研究。
 - 同音字较多、目标候选靠后或需要精确选字时，再使用墨奇辅码。
 - 优先利用 Fcitx5 已有的 Stroke Filter / 辅助筛选机制增加 MoQi Filter。
 - 尽量不修改 LibIME 核心。
+- 辅码采用 Auxiliary Filter 思路：主输入候选与辅助过滤解耦。
+- 当前实现优先且仅聚焦 MoQi Filter；Radical/Stroke 等仅保留未来扩展能力，不为其提前过度设计。
 - 原有 Stroke Filter 原则上应保留，MoQi Filter 作为新增能力，而不是破坏现有功能。
 
 ### 2.3 交互方式
@@ -73,7 +75,7 @@ Windows 等平台可在 Android 方案成熟后继续研究。
 - OpenAI-compatible ASR；
 - 其他后续验证合适的服务。
 
-具体后端不是硬依赖，应尽量可替换。
+具体后端不是硬依赖。ASR 必须通过可插拔 Provider 接口接入，最终允许用户在 Fcitx5 Android UI 中选择和配置 Provider。
 
 ### 4.3 数据流
 
@@ -114,3 +116,5 @@ ASR provider 与 LLM provider 不应被强绑定。
 - 优先最小改造和上游兼容。
 - 尽量避免长期维护大型 fork。
 - 若修改足够通用且许可证/质量合适，应考虑向相关上游提交贡献。
+- 相关改动尽量组成逻辑完整的批次后再 push/触发 CI；避免每个小改动单独触发耗时 Actions。
+- 本地可验证的内容优先本地验证；纯文档修改原则上不触发重型 CI。
