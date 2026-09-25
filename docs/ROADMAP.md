@@ -16,9 +16,9 @@
 
 ## Phase 1 — 上游源码研究
 
-**状态：IN PROGRESS**
+**状态：COMPLETE**
 
-> 当前重点：完成 Stroke Filter → CandidateList/composition 调用链与 partial selection 研究，满足退出条件后再进入 Phase 2。
+> 源码研究已完成 Phase 2 PoC 所需的最小修改边界确认：MoQi Filter V1 以 `fcitx5-chinese-addons` 候选过滤层为主，不修改 LibIME 核心，并已 fork `fcitx5-chinese-addons` 进入实现验证。
 
 ### 1.1 Fcitx5 Chinese Addons
 
@@ -62,7 +62,9 @@
 
 ## Phase 2 — MoQi Filter PoC
 
-**状态：未开始**
+**状态：IN PROGRESS**
+
+当前批次按“批量开发、阶段性 CI”一次完成候选过滤、状态切换、Backspace/退出、Stroke 共存以及 Pinyin/Shuangpin 关键测试，再统一触发 CI。
 
 目标：
 
@@ -77,7 +79,7 @@
 - [ ] 可继续对后续其他字/词再次使用辅码
 - [ ] 先用最小墨奇码表验证状态机，再接入完整码表
 
-PoC 完成后，根据修改边界决定是否 fork `fcitx5-chinese-addons` 并维护 feature branch。
+已 fork `fcitx5-chinese-addons` 用于 MoQi Filter V1 PoC；PoC 完成后再根据维护成本与上游兼容性决定长期 fork/贡献策略。
 
 ## Phase 3 — Android 集成与输入体验验证
 
@@ -140,4 +142,4 @@ PoC 完成后，根据修改边界决定是否 fork `fcitx5-chinese-addons` 并�
 
 ## 当前下一步
 
-继续追踪 `PinyinContext::selectedLength()`、`selectCandidatesToCursor()`、`candidatesToCursor()` 以及 `ChooseCharFromPhrase`，验证 partial selection 后继续使用 MoQi Filter 的可行性，并据此定义 **MoQi Filter V1 的目标字/词约束语义**。
+推进 **MoQi Filter V1 PoC 当前批次**：完成候选过滤、状态切换、Backspace/退出、Stroke Filter 共存及 Pinyin/Shuangpin 关键测试；本地验证后统一触发阶段性 CI。Phase 2 Exit Criteria 满足前，不进入 Android UI 或语音实现。
