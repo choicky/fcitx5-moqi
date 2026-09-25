@@ -37,19 +37,23 @@
 
 ### 当前批次
 
-- [ ] 将现有 Stroke trigger/mode 最小泛化为 Auxiliary Filter；
-- [ ] 增加 Disabled / Stroke / MoQi 配置；
-- [ ] 保留 Stroke-specific filter；
-- [ ] 接入现有 MoQi reverse lookup；
-- [ ] 实现 selection-frontier MoQi filtering；
-- [ ] Backspace / Escape；
-- [ ] partial selection；
-- [ ] composition 保留；
-- [ ] 继续输入；
-- [ ] 再次使用 Auxiliary Filter；
-- [ ] Pinyin / Shuangpin 等价核心行为；
+- [x] 将现有 Stroke trigger/mode 最小泛化为 Auxiliary Filter；
+- [x] 增加 Disabled / Stroke / MoQi 配置；
+- [x] 保留 Stroke-specific filter；
+- [x] 接入现有 MoQi reverse lookup；
+- [x] 实现 selection-frontier MoQi filtering；
+- [x] Backspace / Escape；
+- [x] partial selection；
+- [x] composition 保留；
+- [x] 继续输入；
+- [x] 再次使用 Auxiliary Filter；
+- [x] Pinyin / Shuangpin 等价核心行为；
 - [ ] Stroke regression；
 - [ ] 验证 generic Android config exposure。
+
+实现已提交到 `choicky/fcitx5-chinese-addons` 的 `feature/moqi-filter` 分支，当前 tip 为 `e6ffb2b9df5cd0f26f27c44d4504d515281500fb`，对应 PR #1。源码已包含上述已勾选能力及 Pinyin/Shuangpin 自动化测试。
+
+当前 CI 的 clang-format 检查未通过，因此 build/test job 被跳过；在格式修复、完整 CI、Stroke 回归和 Android generic config 实机验证完成前，Phase 2 保持 IN PROGRESS。
 
 ### 预计修改边界
 
@@ -196,4 +200,4 @@ Android 架构稳定后再评估 Windows、Linux、macOS、iOS，并保持 Trigg
 
 ## 当前下一步
 
-完成 Phase 2 Auxiliary Filter 重构及完整 PoC 批次，本地审查通过后再统一 push/触发阶段性 CI。
+修复 `fcitx5-chinese-addons` PR #1 的 clang-format 差异并重新运行完整 CI；随后完成 Stroke 回归和 Android generic config exposure 验证。全部 Exit Criteria 通过后再将 Phase 2 标记为 COMPLETE。
