@@ -56,6 +56,15 @@ Phase 2 已完成（Exit Criteria 全部满足，含 Android 实机验证），�
 
 当前仍不修改 LibIME，不进入完整语音实现。
 
+## 发布
+
+自构建 Android 发布线（与上游官方构建无隶属关系，请勿当作官方版本）：
+
+- 包名：release 为 `org.fcitx.fcitx5.android.moqi`，debug 测试包为 `org.fcitx.fcitx5.android.debug`；两者都能与官方 Fcitx5 共存，同一条线内可覆盖升级。
+- 发布流程：确认 `fcitx5-chinese-addons` 的 `feature/moqi-filter` 处于期望提交 → 在 `fcitx5-android` 上打 tag（如 `v0.1.3-moqi.2`）并推送 → `Release APK` workflow 自动构建、校验并创建 Release 并附 APK。
+- 签名：由 `choicky/fcitx5-android` 的仓库 secrets `SIGN_KEY_BASE64` / `SIGN_KEY_PWD` / `SIGN_KEY_ALIAS` 提供，复用上游 `build-logic` 既有接口，fork 内不含签名代码。密钥与口令不得提交进任何仓库，且必须在仓库之外另行备份——丢失后无法再发布可覆盖升级的版本。
+- 许可：发布二进制时须在 release notes 中给出 LGPL-2.1 许可与对应源码链接（两个 fork 的提交/tag）。
+
 ## 文档
 
 - [需求规格](docs/REQUIREMENTS.md)
