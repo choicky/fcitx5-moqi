@@ -45,20 +45,16 @@ Trigger 只表达用户意图；具体 Filter / Provider 由配置决定。
 
 ## 当前阶段
 
-Phase 1 已完成，当前处于 **Phase 2 — MoQi Auxiliary Filter V1 PoC**。
+Phase 2 已完成（Exit Criteria 全部满足，含 Android 实机验证），当前处于 **Phase 3 — Full MoQi / Android Integration**。
 
-当前重点是把此前独立的 MoQi mode/trigger 重构为基于上游 Stroke Filter 的统一 Auxiliary Filter，并验证：
+当前重点：
 
-- Disabled / Stroke / MoQi 配置；
-- MoQi selection-frontier 过滤；
-- partial selection；
-- composition 保留；
-- Backspace / Escape；
-- 继续输入并再次使用 Auxiliary Filter；
-- Pinyin / Shuangpin 等价核心行为；
-- Stroke 回归。
+- Android 侧墨奇表的正式分发：正常构建（不依赖 CI 临时步骤）产出的 APK 必须内含 `moqima_gb18030.txt`；
+- 固定 MoQi table 的 build-time transformation 与版本更新策略；
+- Android 构建、安装与实际输入体验，含 Auxiliary Filter 配置体验；
+- edge cases 补测，以及向上游贡献 / 长期 fork 必要性评估。
 
-当前不修改 LibIME，不进入完整语音实现。
+当前仍不修改 LibIME，不进入完整语音实现。
 
 ## 文档
 
