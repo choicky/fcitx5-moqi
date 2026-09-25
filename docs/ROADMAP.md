@@ -101,18 +101,30 @@ Phase 2 Exit Criteria 满足前，不进入完整 Android UI 或 Voice 实现。
 
 ## Phase 3 — Full MoQi / Android Integration
 
-**状态：NOT STARTED**
+**状态：IN PROGRESS**
 
-Phase 2 成功后：
+### 目标
+
+让墨奇表与 Auxiliary Filter 在 Android 上通过**正常构建**（不依赖任何 CI 临时步骤）即可用，并完成 Android 实机回归与后续集成决策。
+
+### 当前批次
+
+- [x] Android 侧墨奇表分发：`choicky/fcitx5-android` 在 app 的 `CMakeLists.txt` 于 **configure 阶段**按固定上游 commit + SHA256 取表，并以 `prebuilt-assets` component 安装。CI run `36131495456` 在**没有任何 CI 临时步骤**的正常构建下产出 APK，断言包内 `assets/usr/share/fcitx5/pinyinhelper/moqima_gb18030.txt` 存在且 SHA256 = `66deab4aaba1285e3c85eb3a364c21bc08db1911b61df8e934f0d006ca7e7923`；
+- [ ] 固定 MoQi table 的 build-time transformation / 版本更新策略；
+- [ ] Android 实机回归：新分发机制下配置项显示、持久化与过滤行为不变（需再次实机确认）；
+- [ ] edge cases 补测。
+
+> 被否决的方案：在 addon 里给码表的 `install(FILES ...)` 加 `COMPONENT config`，借 fcitx5-android 的 config component 安装带进 APK。实测失败（CI run `36130867729`）：`installLibraryConfig[...]` 只先构建 `generate-desktop-file` 就执行 `cmake --install --component config`，早于 addon 原生构建，构建期生成的码表此时尚不存在。该改动已在 `619c7b4` 回退，结论记入 D024。
+
+### 范围
 
 - 完整固定 MoQi table 集成；
-- Android 数据打包：addon 中无 COMPONENT 的 `install(FILES ...)` 不会进入 APK，墨奇表需经 `fcitx5-android/prebuilt` 的 `chinese-addons-data` 或等效机制分发；
-- 最终 build-time transformation / version update policy；
-- edge cases 与完整测试；
 - Android 构建、安装和实际输入体验；
 - Auxiliary Filter 配置体验；
 - 用户学习、性能和稳定性；
 - 评估向上游贡献及长期 fork 必要性。
+
+> 已记录的打包发现：`fcitx5-android` 只安装 CMake 的 `prebuilt-assets` / `config` / `translation` 三个 component，addon 中无 COMPONENT 的 `install(FILES ...)` 不会进入 APK。Phase 2 的测试 APK 用 CI 临时步骤绕过，本 Phase 需要落地正式机制。
 
 ## Phase 4 — Voice Input PoC
 

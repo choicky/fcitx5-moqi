@@ -157,3 +157,19 @@ Phase 2 不为未来 Filter 建立复杂 Plugin Framework；优先在 `fcitx5-ch
 单元测试只验证 Android generic config 契约中可在进程内验证的部分：descriptor 暴露（Type / DefaultValue / Enum / EnumI18n）与 `setConfigForInputMethod()` → `getConfigForInputMethod()` 三个配置值往返。
 
 磁盘持久化与 reload 后取值必须在 Android 实机验证：测试环境以 `SkipUserPath` 构造 `StandardPaths`，`userPath(PkgConfig)` 为空，`safeSaveAsIni()` 无处可写、`readAsIni()` 读不到文件，`Configuration::load()` 会把所有选项 reset 为默认值。
+
+## D024 — Android 侧墨奇表在 app configure 阶段获取，并作为 prebuilt-assets 安装
+
+**状态：Accepted**
+
+`fcitx5-android` 只为库安装 `config` / `translation` 两个 component，且这两个 component 的安装发生在那两个库的原生构建**之前**；而 `fcitx5-chinese-addons` 的码表是构建期（`moqi-table` target）生成的，因此无法经由 addon 的 install 规则进入 APK（实测过程见 ROADMAP 中"被否决的方案"）。
+
+决定：在 `fcitx5-android` 的 `app/src/main/cpp/CMakeLists.txt` 中，于 **configure 阶段**按固定上游 commit（`6d8ba8f1c57466f358e682baefe11bbd0fe389ab`）下载 `moqima_gb18030.txt` 并由 CMake 校验 SHA256，再以 `prebuilt-assets` component 安装到 `${FCITX_INSTALL_PKGDATADIR}/pinyinhelper`。
+
+考虑过并否决的替代方案：
+
+- addon 端 `COMPONENT config`：安装早于 addon 原生构建，构建期生成的文件不存在，实测失败；
+- 数据放入 `fcitx5-android/prebuilt` 并 fork 该仓库 + 改 submodule URL：最贴近上游既有做法，但需要额外 fork 一个二进制数据仓库；
+- 把 1.44 MB 码表提交进代码仓库：与上游"下载并校验哈希"的既有做法相悖。
+
+后续评估向上游贡献时，推荐路径是把该表加入上游 `fcitx5-android/prebuilt` 的 `chinese-addons-data`，届时可移除本条所述 fork 内机制。
