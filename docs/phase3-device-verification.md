@@ -1,4 +1,4 @@
-# Phase 3 实机回归：v0.1.3-moqi.1 操作与记录表
+# Phase 3 实机回归：v0.1.3-moqi.2 操作与记录表
 
 > 目的：用正式发布包（`org.fcitx.fcitx5.android.moqi`）完成 Phase 3 最后一项"Android 实机回归"，
 > 同时覆盖发布线冒烟与"墨奇表经 addon config component 分发"的实机确认。
@@ -6,7 +6,7 @@
 
 ## 准备
 
-1. 下载 [v0.1.3-moqi.1](https://github.com/choicky/fcitx5-android/releases/tag/v0.1.3-moqi.1) 的 arm64-v8a APK，允许"安装未知应用"后安装。
+1. 下载 [v0.1.3-moqi.2](https://github.com/choicky/fcitx5-android/releases/tag/v0.1.3-moqi.2) 的 arm64-v8a APK，允许"安装未知应用"后安装。
    - 包名 `.moqi`，可与官方 Fcitx5 **共存**；同一条发布线之间可直接覆盖升级。
    - 早前的测试包（`.debug`）与它不互通，可保留也可卸载。
 2. 系统设置 → 语言和输入法 → 启用新装的 Fcitx5（release 名称为 `Fcitx5`，debug 为 `Fcitx5 (Debug)`）。
@@ -30,6 +30,15 @@
 | 10 | 设为 `Stroke` → 输入 `ppp` | 能筛出「彡」（上游笔画行为未回归） |
 | 11 | 设为 `Disabled` → 有候选时按 **`** | **不触发筛选**（预期行为：按键按字面处理，会输入一个反引号） |
 | 12 | 确认官方 Fcitx5 与新包同时存在 | 两个输入法可分别启用/切换，互不覆盖 |
+
+## 构建可追溯性
+
+本包由 tag `v0.1.3-moqi.2` 触发构建，addon 来源已固定为完整 commit，**同一 tag 可复现**：
+
+- fcitx5-chinese-addons：`0d0102b82b35debf4cf22ce192060c07f10e7b35`
+- MoQi 码表 SHA256：`66deab4aaba1285e3c85eb3a364c21bc08db1911b61df8e934f0d006ca7e7923`
+- fcitx5-android：`59efbf543d1ca47041886794e085cef703bde180`
+- 构建：CI run `36158362313`；APK 资产 `org.fcitx.fcitx5.android-v0.1.3-moqi.2-0-g59efbf54-arm64-v8a-release.apk`
 
 ## 需要留存的证据
 
