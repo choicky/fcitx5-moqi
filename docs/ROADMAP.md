@@ -16,7 +16,9 @@
 
 ## Phase 1 — 上游源码研究
 
-**状态：完成**
+**状态：IN PROGRESS**
+
+> 当前重点：完成 Stroke Filter → CandidateList/composition 调用链与 partial selection 研究，满足退出条件后再进入 Phase 2。
 
 ### 1.1 Fcitx5 Chinese Addons
 
@@ -70,6 +72,10 @@
 - [ ] 使用辅码不会强制提交整句
 - [ ] 不破坏原有 Stroke Filter
 - [ ] 不影响 LibIME 原有词库、LM 和用户学习
+- [ ] Backspace 可撤销辅码/过滤状态
+- [ ] 辅码过滤后可继续输入 Pinyin/Shuangpin
+- [ ] 可继续对后续其他字/词再次使用辅码
+- [ ] 先用最小墨奇码表验证状态机，再接入完整码表
 
 PoC 完成后，根据修改边界决定是否 fork `fcitx5-chinese-addons` 并维护 feature branch。
 
@@ -92,9 +98,12 @@ PoC 完成后，根据修改边界决定是否 fork `fcitx5-chinese-addons` 并�
 
 **状态：未开始**
 
+架构固定为 `Audio Capture -> ASR Provider -> Raw Transcript -> Optional LLM Post Processor -> IME`。ASR Provider 从一开始可插拔，不绑定单一厂商或模型，最终由用户在 Fcitx5 Android UI 中选择。
+
 - [ ] 跟踪 Fcitx5 Android 当前语音输入上游实现
 - [ ] 研究 Android SpeechRecognizer / RecognitionService
-- [ ] 定义独立 ASR provider 接口
+- [ ] 定义独立 ASR Provider 接口
+- [ ] 定义 Fcitx5 Android UI 的 Provider 选择与配置入口
 - [ ] 定义录音、上传、停止和审计边界
 - [ ] 确定是否可避免修改 Fcitx5 Android 主程序
 
@@ -104,8 +113,9 @@ PoC 完成后，根据修改边界决定是否 fork `fcitx5-chinese-addons` 并�
 
 选取有代表性的本地/云端方案验证：
 
-- [ ] 云端 ASR
-- [ ] 自建/本地 ASR
+- [ ] 豆包 / 阿里云 / 腾讯云 / 讯飞等代表性云端 ASR
+- [ ] OpenAI-compatible ASR
+- [ ] sherpa-onnx / FunASR / SenseVoice 等本地或自建 ASR
 - [ ] provider 切换
 - [ ] 流式/非流式识别
 - [ ] 中文识别质量与延迟
@@ -120,6 +130,13 @@ PoC 完成后，根据修改边界决定是否 fork `fcitx5-chinese-addons` 并�
 - [ ] 纠错/标点/格式化
 - [ ] 可配置 provider
 - [ ] 明确发送给 LLM 的文本范围和隐私边界
+
+## 工程节奏
+
+- 相关改动尽量组成逻辑完整的批次后再 push/触发 CI。
+- 本地可完成的检查优先本地执行；纯文档改动原则上不触发耗时构建。
+- CI 作为阶段性验证节点使用；可并行的验证尽量一次触发，避免每个小改动都等待 Actions。
+- 批量不等于堆积不可审查的大改动，每个批次仍需目标明确。
 
 ## 当前下一步
 
