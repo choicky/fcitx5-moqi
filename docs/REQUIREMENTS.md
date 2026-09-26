@@ -149,7 +149,14 @@ Microphone Button ─┐
 Long-press Space ──┘
 ```
 
-现有 `SpaceLongPressBehavior` 后续应增加 `VoiceInput`。该行为只负责 dispatch 到统一 Voice Trigger，不实现独立语音 pipeline。
+两种入口共用同一个 Voice Input 会话及其 start/stop/cancel 操作：
+
+- 麦克风按钮：点击开始，再次点击停止，随后等待最终识别结果；
+- 空格键：按住开始，正常松开停止并等待最终识别结果；按住期间上滑进入取消状态，松开则取消；
+- stop 表示结束录音并等待 final transcript；cancel 表示放弃本次输入，清除临时 partial transcript，不提交文本，并丢弃迟到的回调；
+- 上滑取消应显示明确反馈并设置防误触阈值，距离与反馈样式待真机验证。
+
+现有 `SpaceLongPressBehavior` 后续应增加 `VoiceInput`，仅将手势分发到统一 Voice Input flow。Phase 4 首批先验证麦克风入口的 stop/cancel 和结果路径，再实现空格手势；不得为两种入口建立独立 pipeline。
 
 ## 8. Android Voice Input
 

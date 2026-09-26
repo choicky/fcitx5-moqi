@@ -82,13 +82,15 @@ Auxiliary Filter selection 优先通过 Fcitx config descriptor 暴露，复用 
 
 **状态：Accepted**
 
-独立麦克风按钮为默认 Voice Trigger。Trigger 只表示开始/进入语音输入，不绑定任何 ASR Provider。
+独立麦克风按钮为默认 Voice Trigger：点击开始录音，再次点击停止录音并等待识别结果。Trigger 不绑定任何 ASR Provider；停止与取消是不同操作。
 
 ## D013 — 长按 Space 可选触发同一个 Voice Input
 
 **状态：Accepted**
 
-后续在 `SpaceLongPressBehavior` 增加 `VoiceInput`。麦克风按钮与长按 Space 必须 dispatch 到同一 Voice Trigger，不建立两套 voice pipeline。
+后续在 `SpaceLongPressBehavior` 增加 `VoiceInput`：按住空格开始录音，正常松开停止录音并等待识别结果；按住期间向上滑进入取消状态，松开则取消本次语音输入。取消不得提交任何本次语音的文本，已显示的临时 partial transcript 应清除，迟到的识别结果应丢弃。上滑取消需明确的视觉反馈与防误触阈值，具体手势细节待真机验证。
+
+麦克风按钮与长按 Space 共用同一个 Voice Input session/flow，分别把点击、松开、上滑取消映射到 start、stop、cancel，不建立两套语音 pipeline。Phase 4 首批先验证麦克风入口；空格手势在会话 stop/cancel 语义经真机验证后实现。
 
 ## D014 — 优先复用 Fcitx5 Android SpeechRecognizer 工作
 

@@ -169,7 +169,7 @@ Phase 3 未定义独立的 "Exit Criteria" 小节（ROADMAP 中只有 Phase 2 �
 
 ## Phase 4 — Voice Input PoC
 
-**状态：NOT STARTED**
+**状态：CHECKPOINT COMPLETE；PoC 尚未实现**
 
 优先复用：
 
@@ -190,16 +190,19 @@ Microphone
 → IME
 ```
 
-并验证：
+后续验证可选空格手势（与麦克风共用同一会话）：
 
 ```text
 Long-press Space
-→ same Voice Trigger
+→ press: start / release: stop / swipe up then release: cancel
+→ same Voice Input flow
 ```
+
+交互决策：麦克风点击开始、再次点击停止；空格按住开始、正常松开停止、按住上滑后松开取消。stop 等待 final；cancel 清除临时 partial、不提交本次语音文本并丢弃迟到回调。先做麦克风最小 PoC；空格手势留到 stop/cancel 与生命周期真机验证后的下一批，手势阈值及视觉反馈待真机确定。
 
 Exit Criteria：
 
-- microphone 与可选 long-press Space 进入同一 voice path；
+- microphone 与可选 long-press Space 进入同一 voice path，遵守上述不同的 start/stop/cancel 手势；
 - permission/lifecycle/start/stop/cancel 正确；
 - partial/final transcript 正确；
 - Voice Trigger 不绑定 ASR vendor；
