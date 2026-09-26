@@ -45,16 +45,14 @@ Trigger 只表达用户意图；具体 Filter / Provider 由配置决定。
 
 ## 当前阶段
 
-Phase 2 已完成（Exit Criteria 全部满足，含 Android 实机验证），当前处于 **Phase 3 — Full MoQi / Android Integration**。
+Phase 3 已完成（证据与限制见 ROADMAP 的 Phase 3 Final Review），当前处于 **Phase 4 — Voice Input PoC（进行中）**。
 
-当前重点：
+当前状态：
 
-- Android 侧墨奇表的正式分发：正常构建（不依赖 CI 临时步骤）产出的 APK 必须内含 `moqima_gb18030.txt`；
-- 固定 MoQi table 的 build-time transformation 与版本更新策略；
-- Android 构建、安装与实际输入体验，含 Auxiliary Filter 配置体验；
-- edge cases 补测，以及向上游贡献 / 长期 fork 必要性评估。
+- 麦克风入口的最小语音输入 PoC 已在 `choicky/fcitx5-android` 的 `phase4-voice-poc` 分支实现（`fc5b909c`），**尚未经 Android 实机验证**；
+- 下一道关口是实机验证；空格手势、ASR Provider 层与可选 LLM 后处理均不在当前批次。
 
-当前仍不修改 LibIME，不进入完整语音实现。
+仍不修改 LibIME；不在 Voice PoC 验证前建设 ASR Provider framework。
 
 ## 发布
 
@@ -79,4 +77,4 @@ Phase 2 已完成（Exit Criteria 全部满足，含 Android 实机验证），�
 - 总控仓库：`fcitx5-moqi`
 - Phase 2 fork：`choicky/fcitx5-chinese-addons`
 - 当前不 fork LibIME
-- `fcitx5-android` 是否 fork，待后续 Voice PoC 的实际修改边界确认
+- `choicky/fcitx5-android`：除发布基础设施（发布 workflow、包名后缀、签名 secrets）外，`phase4-voice-poc` 分支已包含最小语音输入 PoC 的产品代码，因此不能再描述为仅发行用途的 fork；该 PoC 尚未进入任何发布 tag。长期 fork 范围仍待 Voice PoC 的实际修改边界确认（D019，未决）

@@ -169,7 +169,7 @@ Phase 3 未定义独立的 "Exit Criteria" 小节（ROADMAP 中只有 Phase 2 �
 
 ## Phase 4 — Voice Input PoC
 
-**状态：CHECKPOINT COMPLETE；PoC 尚未实现**
+**状态：IN PROGRESS — 麦克风最小 PoC 已实现，尚未实机验证**
 
 优先复用：
 
@@ -208,6 +208,76 @@ Exit Criteria：
 - Voice Trigger 不绑定 ASR vendor；
 - ASR implementation boundary 明确；
 - 数据流可审计。
+
+### 当前批次
+
+- [x] 批次 4.1 — 麦克风最小 PoC（源码已实现）：`choicky/fcitx5-android` 分支 `phase4-voice-poc`，commit `fc5b909c25f99f012e7b37963fa1a418d0d06bf9`，父提交为 Phase 4 基线 `59efbf54`；未进入任何发布 tag；
+- [ ] **实机验证批次 4.1**（批次 4.2 常规加固前的关口，见下方"实机验证关口"）；
+- [ ] 批次 4.2 — 麦克风路径加固（范围待实机结果与未决问题确定后再定）；
+- [ ] 批次 4.3 — 长按空格手势（按 D013，在批次 4.1/4.2 的 stop/cancel 与生命周期经实机验证后实现）。
+
+批次 4.1 实际内容（源码事实，未经实机验证）：
+
+- `input/voice/VoiceInputSession.kt`：不依赖 Android 的会话状态机（Idle / Starting / Listening / Stopping），每次会话一个 generation token，旧 token 的回调一律丢弃；
+- `input/voice/VoiceInputComponent.kt`：直接使用 Android `SpeechRecognizer`（系统当前默认 `RecognitionService`，无自定义 Service、无独立 APK、无 Provider 层），每次会话创建、结束即 `destroy()`；partial 以带下划线的 composing text 显示，final 经 `commitText` 提交；
+- 麦克风按钮（复用 KawaiiBar 原语音按钮位置）：点击开始、再次点击 stop（等待 final）；Starting 阶段再次点击直接放弃启动；
+- cancel 入口：软键盘任意按键、`onKeyDown` 收到的硬件按键、`onFinishInputView`、`onStartInput`、InputView 卸载/服务销毁；cancel 清除 partial、不提交文本；
+- 开始录音前对当前 Fcitx InputContext 执行 `reset()`（丢弃未上屏的拼音 preedit，不提交）；
+- 权限：Manifest 声明 `RECORD_AUDIO` 并加入 `android.speech.RecognitionService` 查询；无权限时经 `MainActivity` 新增 action 申请；密码框不显示麦克风。
+
+证据：
+
+- CI run `36252101559`：workflow `MoQi test APK`，手动触发（`workflow_dispatch`），分支 `phase4-voice-poc`，head `fc5b909c`；唯一 job `build_debug_apk` 成功。该 workflow 只执行 `BUILD_ABI=arm64-v8a ./gradlew :app:assembleDebug` 及 APK 内容断言（码表路径与 SHA256、`libpinyin.so` 含 AuxiliaryFilter、`.debug` 包名），**不运行单元测试或 lint**；addon 取构建时 `feature/moqi-filter` 的 tip（测试 workflow 设计如此）。产物 `moqi-debug-apk`；
+- 单元测试：`VoiceInputSessionTest` 4/4 通过，**仅在项目所有者本机**（`testDebugUnitTest`，2026-09-26，提交前运行），未在 CI 中运行；
+- 实机：**无**。
+
+### 已知问题与待确认项（来自 2026-09-27 源码审阅）
+
+A. 源码层已确认的事实（非实机结论）：
+
+1. 长按空格手势未实现——按 D013 有意推迟，不是缺陷；
+2. 原"切换到外部语音输入法"路径已移除：麦克风按钮不再调用 `InputMethodUtil.switchInputMethod`，`preferredVoiceInput` 设置项仍显示但不再被读取。是否保留、恢复或移除外部语音键盘行为是**未决的兼容性/行为问题**，尚无决定；
+3. 数据流审计：仅错误路径有日志；录音 start/stop/cancel、实际使用的 `RecognitionService`、raw transcript 与最终提交文本均未记录——Exit Criteria"数据流可审计"尚未满足。隐私约束：后续实现审计时须区分开发/诊断日志与 release 日志；release 日志默认不得记录完整的用户 transcript 或最终输入文本；
+4. Stopping 状态没有超时，且 Stopping 期间点击麦克风不做任何处理；
+5. 当前 PoC 在 `VoiceInputComponent` 内封装对 `SpeechRecognizer` 的直接调用，与 D015 记录的 Android `SpeechRecognizer` / `RecognitionService` 边界一致；Phase 5 的 ASR Provider abstraction 尚未实现；应用层 PoC 边界是否需要细化，待实机验证后再评估；
+6. `fcitx5-android` fork 已包含语音产品代码，`research/upstream-fork-assessment.md` 中"仅发行用途、约 3 文件差异"的结论不再适用于该分支；长期 fork 范围（D019）未决。
+
+B. 由源码推断、需实机确认的风险：
+
+1. 录音中光标被移出语音 composing 区时，partial 可能被 `finishComposingText` 保留为正文，随后 final 再次提交，导致重复文本；
+2. 若识别服务在 stop 后不回调 `onResults` / `onError`，界面可能停留在"停止"图标，直到下一次按键或切换输入框；
+3. `MainActivity` 为 `singleTask`：设置页已打开时申请麦克风权限，可能关闭用户当前设置页（及其上的 Activity）；授权后需再次点击麦克风；
+4. 任意硬件按键（可能包括音量键）都会取消语音；
+5. 不同 `RecognitionService` 对 stop 后返回 `ERROR_NO_MATCH` / `ERROR_CLIENT` 等的行为不同；这些错误会静默清除 partial、不提交；
+6. 开始录音时的 `reset()` 在墨奇筛选模式下是否只清除、不提交，需在实机确认（PoC 代码注释称固定版本的 Pinyin 实现只清除 preedit、不提交，该说法尚未独立核实）。
+
+### 实机验证关口
+
+计划中的批次 4.2 常规加固开始前，必须先完成以下实机验证，并按 Phase 3 的证据标准如实记录（人工回报须注明是否附截图/logcat）。若测试中复现基本语音流程的阻断性缺陷，可先记录证据并立即修复该缺陷，不必机械地先完成全部 12 项。使用 run `36252101559` 的 `moqi-debug-apk`（包名 `org.fcitx.fcitx5.android.debug`，arm64-v8a）：
+
+1. 记录设备型号、Android 版本及系统默认语音识别服务（包名）；
+2. 首次点击麦克风的权限流程；拒绝权限时的表现；授权后再次点击可开始；
+3. 开始 → 说话 → partial 显示 → 再次点击停止 → final 替换 partial，且只提交一次；
+4. 不说话即停止；说话后由识别服务自动结束；
+5. cancel：录音中按软键盘按键、按硬件键（含音量键）、收起键盘、切换输入框——均无文本提交、partial 被清除；
+6. 录音中移动光标或点击其它位置（风险 B1）；
+7. stop 后按钮能否回到空闲，是否出现卡在 Stopping（风险 B2）；
+8. 密码框不显示麦克风；
+9. 生命周期：旋转屏幕、切换主题、切到其它应用再返回——无崩溃，系统麦克风占用指示及时消失；
+10. 设置页已打开时触发权限申请（风险 B3）；
+11. MoQi 回归：拼音输入中途点击麦克风 → preedit 被清除且不上屏；语音结束后拼音 + 反引号墨奇筛选照常（风险 B6）；
+12. 中文与英文输入法下各试一次（`EXTRA_LANGUAGE` 来自当前输入法语言）。
+
+### Exit Criteria 当前状态
+
+| Exit Criterion | 状态 |
+|---|---|
+| microphone 与可选 long-press Space 进入同一 voice path | 麦克风已实现（未实机验证）；空格按 D013 推迟 |
+| permission / lifecycle / start / stop / cancel 正确 | 源码已实现，未实机验证；见 B1–B4 |
+| partial / final transcript 正确 | 源码已实现，未实机验证；见 B1、B5 |
+| Voice Trigger 不绑定 ASR vendor | 源码层满足：仅使用系统默认 `RecognitionService` |
+| ASR implementation boundary 明确 | Android 边界符合 D015；Provider abstraction 属 Phase 5；应用层边界待实机后评估（A5） |
+| 数据流可审计 | 未满足（A3） |
 
 ## Phase 5 — ASR Provider Architecture / PoC
 
@@ -269,9 +339,10 @@ Android 架构稳定后再评估 Windows、Linux、macOS、iOS，并保持 Trigg
 
 ## 当前下一步
 
-**Phase 3 已完成**（证据、限制与 Phase 4 入口见 Phase 3 的 Final Review）。进入 **Phase 4 — Voice Input PoC**：
+**Phase 4 — Voice Input PoC 进行中**（详见上方 Phase 4 区块）：
 
-- 入口定义见下方 Phase 4 区块：microphone 与可选 long-press Space 走同一 voice path，复用 upstream WIP SpeechRecognizer 与 Android `SpeechRecognizer` / `RecognitionService`；
-- 基线：正式包 `v0.1.3-moqi.2`、addon `8ccb09f01da675eda53527136d07a977eb63320e`、Android fork `59efbf543d1ca47041886794e085cef703bde180`；
-- 前置：先确认 PoC 边界与设备/环境，再决定实现范围；不在 Voice PoC 前过度设计 Provider framework。
-- 并行可选（不阻塞 Phase 4 启动）：上游贡献落地（`research/upstream-fork-assessment.md` 第 A 类三项）；一次性探针分支清理；快速 CI 回路（此前暂缓）。
+- 已完成：批次 4.1 麦克风最小 PoC 的源码实现，`fcitx5-android` `phase4-voice-poc@fc5b909c`（基线 `59efbf54`）；CI run `36252101559` 仅验证 `assembleDebug`，单元测试 4/4 仅在本机通过；
+- **立即关口：批次 4.1 实机验证**（Phase 4 区块"实机验证关口" 12 项）。实机验证须先于批次 4.2 常规加固与空格手势；若复现基本语音流程的阻断性缺陷，可记录证据后立即修复；
+- 待决（需项目所有者决定，暂不写入 DECISIONS）：`preferredVoiceInput` / 外部语音键盘行为；`fcitx5-android` 长期 fork 范围（D019）；
+- 关口通过后：按实机结果与上述决定确定批次 4.2（麦克风路径加固）范围，再进入批次 4.3（长按空格手势）；不在 Voice PoC 前过度设计 Provider framework；
+- 并行可选（不阻塞 Phase 4）：上游贡献落地（`research/upstream-fork-assessment.md` 第 A 类三项）；一次性探针分支清理；快速 CI 回路（此前暂缓）。
